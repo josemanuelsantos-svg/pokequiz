@@ -5,10 +5,11 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
   Plus, Play, Edit3, Trash2, Copy, Download, Upload, 
-  HelpCircle, Sparkles, BookOpen, Clock, ArrowLeft, Check, AlertCircle, Loader2, Swords, Award
+  HelpCircle, Sparkles, BookOpen, Clock, ArrowLeft, Check, AlertCircle, Loader2, Swords, Award, Lock
 } from 'lucide-react';
 import { Quiz } from '@/lib/types';
 import { PokeballIcon, GreatBallIcon, UltraBallIcon } from '@/components/Pokeball';
+import { logoutTeacher } from '@/components/TeacherAuthGate';
 
 export default function TeacherDashboard() {
   const router = useRouter();
@@ -28,7 +29,7 @@ export default function TeacherDashboard() {
       // Sync with browser localStorage so serverless cold starts never lose teacher's custom quizzes
       if (typeof window !== 'undefined') {
         try {
-          const rawLocal = localStorage.getItem('pokequiz_custom_quizzes');
+          const rawLocal = localStorage.getItem('pokequiz_custom_quizzes_v2');
           if (rawLocal) {
             const localQuizzes: Quiz[] = JSON.parse(rawLocal);
             const serverMap = new Map(serverQuizzes.map(q => [q.id, q]));
@@ -46,7 +47,7 @@ export default function TeacherDashboard() {
             }
             serverQuizzes = Array.from(serverMap.values()).sort((a, b) => b.updatedAt - a.updatedAt);
           }
-          localStorage.setItem('pokequiz_custom_quizzes', JSON.stringify(serverQuizzes));
+          localStorage.setItem('pokequiz_custom_quizzes_v2', JSON.stringify(serverQuizzes));
         } catch (e) {
           console.warn('Could not sync localStorage quizzes:', e);
         }
@@ -101,7 +102,7 @@ export default function TeacherDashboard() {
         setQuizzes(remaining);
         if (typeof window !== 'undefined') {
           try {
-            localStorage.setItem('pokequiz_custom_quizzes', JSON.stringify(remaining));
+            localStorage.setItem('pokequiz_custom_quizzes_v2', JSON.stringify(remaining));
           } catch {
             // ignore
           }
@@ -224,6 +225,14 @@ export default function TeacherDashboard() {
               <Plus className="w-4 h-4 stroke-[3]" />
               <span>Crear Nuevo Desafío</span>
             </Link>
+
+            <button
+              onClick={logoutTeacher}
+              className="p-2 rounded-xl bg-slate-800 hover:bg-red-950/60 text-slate-400 hover:text-red-400 border border-slate-700 hover:border-red-500/40 transition-all cursor-pointer"
+              title="Bloquear Laboratorio (Cerrar sesión docente)"
+            >
+              <Lock className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </header>

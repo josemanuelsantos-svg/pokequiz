@@ -92,7 +92,7 @@ export default function QuizEditorPage({ params }: { params: Promise<{ id: strin
           if (data.success && data.data) {
             setQuiz(data.data);
           } else if (typeof window !== 'undefined') {
-            const rawLocal = localStorage.getItem('pokequiz_custom_quizzes');
+            const rawLocal = localStorage.getItem('pokequiz_custom_quizzes_v2');
             if (rawLocal) {
               const localList: Quiz[] = JSON.parse(rawLocal);
               const found = localList.find(q => q.id === id);
@@ -304,7 +304,7 @@ export default function QuizEditorPage({ params }: { params: Promise<{ id: strin
         const savedQuiz: Quiz = data.data;
         if (typeof window !== 'undefined') {
           try {
-            const rawLocal = localStorage.getItem('pokequiz_custom_quizzes');
+            const rawLocal = localStorage.getItem('pokequiz_custom_quizzes_v2');
             const localList: Quiz[] = rawLocal ? JSON.parse(rawLocal) : [];
             const idx = localList.findIndex(q => q.id === savedQuiz.id);
             if (idx >= 0) {
@@ -312,7 +312,7 @@ export default function QuizEditorPage({ params }: { params: Promise<{ id: strin
             } else {
               localList.unshift(savedQuiz);
             }
-            localStorage.setItem('pokequiz_custom_quizzes', JSON.stringify(localList));
+            localStorage.setItem('pokequiz_custom_quizzes_v2', JSON.stringify(localList));
           } catch {
             // ignore
           }

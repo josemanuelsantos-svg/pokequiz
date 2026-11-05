@@ -70,9 +70,15 @@ function initStore(): Map<string, Quiz> {
     console.warn('Error loading quizzes file, falling back to samples:', err);
   }
 
-  // Ensure initial sample quizzes exist if store is empty
-  if (map.size === 0) {
-    INITIAL_QUIZZES.forEach(q => map.set(q.id, q));
+  // Ensure initial sample quizzes exist
+  let updatedInitial = false;
+  INITIAL_QUIZZES.forEach(q => {
+    if (!map.has(q.id)) {
+      map.set(q.id, q);
+      updatedInitial = true;
+    }
+  });
+  if (updatedInitial) {
     saveStoreToFile(map);
   }
 
