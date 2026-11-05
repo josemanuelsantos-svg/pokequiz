@@ -29,7 +29,7 @@ export default function TeacherDashboard() {
       // Sync with browser localStorage so serverless cold starts never lose teacher's custom quizzes
       if (typeof window !== 'undefined') {
         try {
-          const rawLocal = localStorage.getItem('pokequiz_custom_quizzes_v2');
+          const rawLocal = localStorage.getItem('pokequiz_custom_quizzes_v3');
           if (rawLocal) {
             const localQuizzes: Quiz[] = JSON.parse(rawLocal);
             const serverMap = new Map(serverQuizzes.map(q => [q.id, q]));
@@ -47,7 +47,7 @@ export default function TeacherDashboard() {
             }
             serverQuizzes = Array.from(serverMap.values()).sort((a, b) => b.updatedAt - a.updatedAt);
           }
-          localStorage.setItem('pokequiz_custom_quizzes_v2', JSON.stringify(serverQuizzes));
+          localStorage.setItem('pokequiz_custom_quizzes_v3', JSON.stringify(serverQuizzes));
         } catch (e) {
           console.warn('Could not sync localStorage quizzes:', e);
         }
@@ -102,7 +102,7 @@ export default function TeacherDashboard() {
         setQuizzes(remaining);
         if (typeof window !== 'undefined') {
           try {
-            localStorage.setItem('pokequiz_custom_quizzes_v2', JSON.stringify(remaining));
+            localStorage.setItem('pokequiz_custom_quizzes_v3', JSON.stringify(remaining));
           } catch {
             // ignore
           }

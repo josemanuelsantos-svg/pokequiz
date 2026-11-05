@@ -70,10 +70,11 @@ function initStore(): Map<string, Quiz> {
     console.warn('Error loading quizzes file, falling back to samples:', err);
   }
 
-  // Ensure initial sample quizzes exist
+  // Ensure initial sample quizzes exist and upgrade if sample questions increased
   let updatedInitial = false;
   INITIAL_QUIZZES.forEach(q => {
-    if (!map.has(q.id)) {
+    const existing = map.get(q.id);
+    if (!existing || existing.questions.length < q.questions.length) {
       map.set(q.id, q);
       updatedInitial = true;
     }
