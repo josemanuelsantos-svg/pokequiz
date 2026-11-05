@@ -8,11 +8,13 @@ import Link from 'next/link';
 import { 
   ArrowLeft, Save, Plus, Trash2, Copy, Image as ImageIcon, 
   Clock, CheckCircle2, AlertCircle, Sparkles, Check, Link as LinkIcon,
-  HelpCircle, Eye, Loader2, Swords, Zap, ArrowUp, ArrowDown, Settings, X
+  HelpCircle, Eye, Loader2, Swords, Zap, ArrowUp, ArrowDown, Settings, X,
+  Globe, Search, ClipboardPaste
 } from 'lucide-react';
 import { Quiz, Question, QuestionOption } from '@/lib/types';
 import { processImageFile } from '@/lib/image-upload';
 import { PokeballIcon } from '@/components/Pokeball';
+import { ImageSearchModal } from '@/components/ImageSearchModal';
 
 export default function QuizEditorPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -29,6 +31,8 @@ export default function QuizEditorPage({ params }: { params: Promise<{ id: strin
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showAiModal, setShowAiModal] = useState(false);
+  const [imageSearchTarget, setImageSearchTarget] = useState<'question' | 'cover' | null>(null);
+  const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [aiTopic, setAiTopic] = useState('');
   const [generatingAi, setGeneratingAi] = useState(false);
 
@@ -201,6 +205,66 @@ export default function QuizEditorPage({ params }: { params: Promise<{ id: strin
       updateCurrentQuestion({ image: imageUrlInput.trim() });
       setImageUrlInput('');
       setShowUrlInput(false);
+    }
+  };
+
+  // Support Ctrl+V / Cmd+V image paste anywhere in the editor
+  useEffect(() => {
+    if (imageSearchTarget !== null) return;
+    const handleEditorPaste = async (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.startsWith('image/')) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (file) {
+            try {
+              const dataUrl = await processImageFile(file);
+              updateCurrentQuestion({ image: dataUrl });
+            } catch {
+              alert('No se pudo pegar la imagen del portapapeles.');
+            }
+          }
+          return;
+        }
+      }
+    };
+    window.addEventListener('paste', handleEditorPaste);
+    return () => window.removeEventListener('paste', handleEditorPaste);
+  });
+
+  // Support dragging an image directly from another browser tab (e.g. Google Images) or desktop
+  const handleImageDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDraggingImage(false);
+
+    // 1. Check if a file was dropped
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      try {
+        const dataUrl = await processImageFile(file);
+        updateCurrentQuestion({ image: dataUrl });
+      } catch {
+        alert('Error al procesar el archivo arrastrado.');
+      }
+      return;
+    }
+
+    // 2. Check if an image from another browser tab (HTML <img src="..."> or URI) was dropped
+    const htmlData = e.dataTransfer.getData('text/html');
+    if (htmlData) {
+      const match = htmlData.match(/<img[^>]+src=["']([^"']+)["']/i);
+      if (match?.[1]) {
+        updateCurrentQuestion({ image: match[1] });
+        return;
+      }
+    }
+
+    const uriList = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+    if (uriList && (uriList.startsWith('http://') || uriList.startsWith('https://') || uriList.startsWith('data:image/'))) {
+      updateCurrentQuestion({ image: uriList.trim().split('\n')[0] });
     }
   };
 
@@ -580,89 +644,143 @@ export default function QuizEditorPage({ params }: { params: Promise<{ id: strin
             />
           </div>
 
-          {/* UNLIMITED IMAGE UPLOAD SECTION */}
+          {/* UNLIMITED IMAGE UPLOAD & INTEGRATED WEB SEARCH SECTION */}
           <div className="bg-slate-950/80 border-2 border-slate-800 rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
               <div className="flex items-center gap-2">
                 <PokeballIcon className="w-4 h-4" />
                 <span className="text-xs font-black text-white uppercase tracking-wider font-pokemon">
-                  Imagen / Silueta de la Pregunta
+                  Imagen / Ilustración de la Pregunta
                 </span>
                 <span className="text-[10px] bg-red-600 text-white font-pixel px-2 py-0.5 rounded-full shadow-sm">
                   ILIMITADO
                 </span>
               </div>
 
-              {currentQuestion.image && (
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={() => updateCurrentQuestion({ image: undefined })}
-                  className="text-xs text-rose-400 hover:text-rose-300 font-bold flex items-center gap-1 font-pokemon"
+                  type="button"
+                  onClick={() => setImageSearchTarget('question')}
+                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-red-600 hover:from-amber-400 hover:to-red-500 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md cursor-pointer font-pokemon uppercase"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Quitar imagen</span>
+                  <Globe className="w-3.5 h-3.5" />
+                  <span>🔍 Buscar en Internet / Pokédex</span>
                 </button>
-              )}
+
+                {currentQuestion.image && (
+                  <button
+                    type="button"
+                    onClick={() => updateCurrentQuestion({ image: undefined })}
+                    className="px-2.5 py-1.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-xs text-rose-400 hover:text-rose-300 font-bold flex items-center gap-1 font-pokemon cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Quitar</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             {currentQuestion.image ? (
-              <div className="relative rounded-2xl overflow-hidden border border-slate-800 max-h-64 flex items-center justify-center bg-black/50 p-2">
+              <div className="relative rounded-2xl overflow-hidden border border-slate-800 max-h-64 flex items-center justify-center bg-black/50 p-2 group">
                 <img
                   src={currentQuestion.image}
                   alt="Vista previa"
                   className="max-h-60 object-contain rounded drop-shadow"
                 />
+                <div className="absolute bottom-3 right-3 flex gap-2 opacity-90 group-hover:opacity-100">
+                  <button
+                    type="button"
+                    onClick={() => setImageSearchTarget('question')}
+                    className="px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-amber-400 text-amber-300 hover:text-slate-950 border border-amber-400/50 text-xs font-black flex items-center gap-1.5 shadow-lg cursor-pointer font-pokemon"
+                  >
+                    <Search className="w-3.5 h-3.5" />
+                    <span>Cambiar desde Internet</span>
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="space-y-3">
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-red-500/40 hover:border-amber-400 rounded-2xl p-6 text-center cursor-pointer bg-slate-900/40 hover:bg-slate-900/80 transition-all group"
-                >
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleImageFileChange}
-                    accept="image/*"
-                    className="hidden"
-                  />
-                  <div className="w-12 h-12 rounded-2xl bg-red-500/20 text-red-400 group-hover:scale-110 flex items-center justify-center mx-auto mb-2 transition-transform">
-                    <ImageIcon className="w-6 h-6 text-amber-400" />
+                {/* Primary action: Integrated Web & Pokédex Image Browser + Drag/Paste */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setImageSearchTarget('question')}
+                    className="border-2 border-amber-400/70 hover:border-amber-300 rounded-2xl p-5 text-center cursor-pointer bg-gradient-to-br from-amber-500/15 to-red-600/15 hover:from-amber-500/25 hover:to-red-600/25 transition-all group flex flex-col items-center justify-center"
+                  >
+                    <div className="w-12 h-12 rounded-2xl bg-amber-400/20 text-amber-300 group-hover:scale-110 flex items-center justify-center mb-2 transition-transform">
+                      <Globe className="w-6 h-6 text-amber-400" />
+                    </div>
+                    <p className="text-xs font-black text-amber-300 font-pokemon uppercase tracking-wider">
+                      🌐 Buscar Imagen en Internet o Pokédex
+                    </p>
+                    <p className="text-[11px] text-slate-300 mt-1">
+                      Escribe lo que buscas y elígela en 1 clic sin descargar nada
+                    </p>
+                  </button>
+
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDraggingImage(true);
+                    }}
+                    onDragLeave={() => setIsDraggingImage(false)}
+                    onDrop={handleImageDrop}
+                    className={`border-2 border-dashed rounded-2xl p-5 text-center cursor-pointer transition-all group flex flex-col items-center justify-center ${
+                      isDraggingImage
+                        ? 'border-amber-400 bg-amber-500/20 scale-[1.01]'
+                        : 'border-red-500/40 hover:border-amber-400 bg-slate-900/40 hover:bg-slate-900/80'
+                    }`}
+                  >
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleImageFileChange}
+                      accept="image/*"
+                      className="hidden"
+                    />
+                    <div className="w-12 h-12 rounded-2xl bg-red-500/20 text-red-400 group-hover:scale-110 flex items-center justify-center mb-2 transition-transform">
+                      <ImageIcon className="w-6 h-6 text-amber-400" />
+                    </div>
+                    <p className="text-xs font-black text-white font-pokemon uppercase tracking-wider">
+                      Pegar con <span className="text-amber-400">Ctrl+V</span>, Arrastrar o Subir
+                    </p>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Copia cualquier foto de Google y pulsa Ctrl+V aquí
+                    </p>
                   </div>
-                  <p className="text-xs font-black text-white font-pokemon uppercase tracking-wider">
-                    Arrastra una imagen o <span className="text-amber-400 underline">haz clic para subir</span>
-                  </p>
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    Cualquier Pokémon, mapa o foto. Sin límite de imágenes.
-                  </p>
                 </div>
 
-                <div>
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                   {!showUrlInput ? (
                     <button
+                      type="button"
                       onClick={() => setShowUrlInput(true)}
-                      className="text-xs text-slate-400 hover:text-amber-300 flex items-center gap-1.5 font-pokemon"
+                      className="text-xs text-slate-400 hover:text-amber-300 flex items-center gap-1.5 font-pokemon cursor-pointer"
                     >
                       <LinkIcon className="w-3.5 h-3.5" />
-                      <span>O pegar enlace URL de una imagen o sprite</span>
+                      <span>O pegar enlace URL directo de una imagen</span>
                     </button>
                   ) : (
-                    <div className="flex items-center gap-2 mt-2">
+                    <div className="flex items-center gap-2 w-full">
                       <input
                         type="url"
                         value={imageUrlInput}
                         onChange={(e) => setImageUrlInput(e.target.value)}
-                        placeholder="https://ejemplo.com/pokemon.png"
+                        placeholder="https://ejemplo.com/imagen.png"
                         className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-amber-400 font-pokemon"
                       />
                       <button
+                        type="button"
                         onClick={handleAddImageUrl}
-                        className="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black font-pokemon"
+                        className="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black font-pokemon cursor-pointer"
                       >
                         Aplicar
                       </button>
                       <button
+                        type="button"
                         onClick={() => setShowUrlInput(false)}
-                        className="px-2 py-1.5 text-xs text-slate-400 hover:text-white"
+                        className="px-2 py-1.5 text-xs text-slate-400 hover:text-white cursor-pointer"
                       >
                         Cancelar
                       </button>
@@ -889,9 +1007,9 @@ export default function QuizEditorPage({ params }: { params: Promise<{ id: strin
 
               <div>
                 <label className="block text-xs text-slate-400 uppercase font-bold mb-1">Portada del Quiz</label>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2">
                   {quiz.coverImage && (
-                    <img src={quiz.coverImage} alt="Portada" className="w-14 h-14 object-cover rounded-xl border border-slate-700" />
+                    <img src={quiz.coverImage} alt="Portada" className="w-14 h-14 object-contain bg-slate-950 rounded-xl border border-slate-700 p-1" />
                   )}
                   <input
                     type="file"
@@ -902,16 +1020,24 @@ export default function QuizEditorPage({ params }: { params: Promise<{ id: strin
                   />
                   <button
                     type="button"
-                    onClick={() => coverInputRef.current?.click()}
-                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs text-slate-300 font-bold border border-slate-700"
+                    onClick={() => setImageSearchTarget('cover')}
+                    className="px-3.5 py-2 bg-amber-400 hover:bg-amber-300 rounded-xl text-xs text-slate-950 font-black flex items-center gap-1.5 cursor-pointer"
                   >
-                    Subir foto de portada
+                    <Globe className="w-3.5 h-3.5" />
+                    <span>Buscar en Internet / Pokédex</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => coverInputRef.current?.click()}
+                    className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs text-slate-300 font-bold border border-slate-700 cursor-pointer"
+                  >
+                    Subir archivo
                   </button>
                   {quiz.coverImage && (
                     <button
                       type="button"
                       onClick={() => setQuiz({ ...quiz, coverImage: undefined })}
-                      className="text-xs text-rose-400 hover:underline"
+                      className="text-xs text-rose-400 hover:underline cursor-pointer"
                     >
                       Quitar
                     </button>
@@ -922,7 +1048,7 @@ export default function QuizEditorPage({ params }: { params: Promise<{ id: strin
               <button
                 type="button"
                 onClick={() => setShowSettingsModal(false)}
-                className="w-full py-3 bg-gradient-to-r from-red-600 to-amber-500 rounded-2xl text-white font-black text-sm uppercase shadow-lg shadow-red-600/30 mt-2"
+                className="w-full py-3 bg-gradient-to-r from-red-600 to-amber-500 rounded-2xl text-white font-black text-sm uppercase shadow-lg shadow-red-600/30 mt-2 cursor-pointer"
               >
                 Aceptar y Continuar
               </button>
@@ -930,6 +1056,20 @@ export default function QuizEditorPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
       )}
+
+      {/* INTEGRATED WEB & POKEDEX IMAGE SEARCH MODAL */}
+      <ImageSearchModal
+        isOpen={imageSearchTarget !== null}
+        onClose={() => setImageSearchTarget(null)}
+        onSelectImage={(selectedUrl) => {
+          if (imageSearchTarget === 'cover') {
+            setQuiz({ ...quiz, coverImage: selectedUrl });
+          } else {
+            updateCurrentQuestion({ image: selectedUrl });
+          }
+          setImageSearchTarget(null);
+        }}
+      />
     </div>
   );
 }
