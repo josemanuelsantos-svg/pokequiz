@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AulaQuiz 🎓🚀 (Alternativa Propia a Quizizz)
 
-## Getting Started
+Plataforma educativa de cuestionarios interactivos en tiempo real con dinámica **"Ritmo del Alumno"** y **subida ilimitada de imágenes**, sin planes de pago ni restricciones.
 
-First, run the development server:
+---
+
+## ✨ Características Principales
+
+1. **Subida Ilimitada de Imágenes:**
+   - Arrastra y suelta imágenes directamente en las preguntas (o pega URLs).
+   - Compresión automática en cliente: máxima nitidez y rendimiento óptimo sin necesitar servicios de pago externos.
+
+2. **Dinámica a Ritmo del Alumno (como Quizizz):**
+   - Los alumnos no están forzados a esperar que el profesor pase la diapositiva.
+   - Cada estudiante lee, reflexiona y responde a su propio ritmo.
+   - Feedback instantáneo con sonido, animaciones y multiplicador de rachas (🔥 x2, x3...).
+
+3. **Panel Docente y Pantalla de Clase:**
+   - Creación, edición, duplicación y exportación/importación en formato JSON.
+   - Lanzamiento de sala con **código PIN de 6 dígitos** y **código QR automático** para proyectar en el aula.
+   - Clasificación en directo con barra de progreso individual por alumno y podio final interactivo con confeti.
+
+4. **100% Listo para Desplegar en Vercel:**
+   - Construido con **Next.js (App Router)** y **Tailwind CSS**.
+   - No depende de servidores WebSocket con estado persistente bloqueante; utiliza sincronización ultra-ligera ideal para entornos Serverless como Vercel, Netlify o Railway.
+
+---
+
+## 🚀 Cómo ejecutarlo en local
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd /Users/jose/.gemini/antigravity/scratch/quiz-app
+npm run build
+npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abre tu navegador en:
+- **Pantalla principal y entrada de alumnos:** [http://localhost:3000](http://localhost:3000)
+- **Panel del Docente:** [http://localhost:3000/teacher](http://localhost:3000/teacher)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+*(Si tienes alumnos con móviles conectados a la misma red WiFi, pueden entrar a la IP que muestra la consola, por ejemplo `http://192.168.68.105:3000`)*.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## ☁️ Cómo desplegarlo en Vercel (Gratis)
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Sube esta carpeta a un repositorio de GitHub (o GitLab / Bitbucket).
+2. Entra en [vercel.com](https://vercel.com) e inicia sesión.
+3. Haz clic en **"Add New Project"** e importa el repositorio `quiz-app`.
+4. Deja la configuración por defecto (Next.js) y pulsa **Deploy**.
+5. ¡Listo! Vercel te dará una URL pública tipo `https://tu-aulaquiz.vercel.app` para compartir con profesores y alumnos.

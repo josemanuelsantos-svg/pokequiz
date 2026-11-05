@@ -1,0 +1,152 @@
+import { Quiz } from './types';
+
+export const INITIAL_QUIZZES: Quiz[] = [
+  {
+    id: 'quiz-liga-pokemon',
+    title: 'Desafío de Gimnasio: Liga Pokémon ⚡🏆',
+    description: 'Demuestra tus conocimientos de entrenador: identifica criaturas, tipos elementales y evoluciones.',
+    category: 'Mundo Pokémon',
+    coverImage: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png',
+    createdAt: Date.now() - 3600000,
+    updatedAt: Date.now() - 3600000,
+    questions: [
+      {
+        id: 'pk1',
+        text: '¿A qué tipo elemental pertenece este famoso Pokémon eléctrico?',
+        image: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png',
+        timeLimit: 15,
+        points: 1000,
+        explanation: '¡Pikachu es el ratón eléctrico más icónico de la franquicia y genera electricidad en sus mejillas rojas!',
+        options: [
+          { id: 'opt1', text: 'Tipo Fuego 🔥', isCorrect: false },
+          { id: 'opt2', text: 'Tipo Eléctrico ⚡', isCorrect: true },
+          { id: 'opt3', text: 'Tipo Acero ⚙️', isCorrect: false },
+          { id: 'opt4', text: 'Tipo Lucha 🥊', isCorrect: false }
+        ]
+      },
+      {
+        id: 'pk2',
+        text: 'Observa la imagen: ¿Qué Pokémon inicial de tipo Fuego es este?',
+        image: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/4.png',
+        timeLimit: 20,
+        points: 1000,
+        explanation: 'Charmander tiene una llama en la punta de su cola que indica su salud y estado de ánimo.',
+        options: [
+          { id: 'opt1', text: 'Charmander 🔥', isCorrect: true },
+          { id: 'opt2', text: 'Cyndaquil 🌋', isCorrect: false },
+          { id: 'opt3', text: 'Torchic 🐥', isCorrect: false },
+          { id: 'opt4', text: 'Chimchar 🐒', isCorrect: false }
+        ]
+      },
+      {
+        id: 'pk3',
+        text: '¿Qué tipo de ataque es SÚPER EFECTIVO contra un Pokémon de Tipo Agua como Squirtle o Blastoise?',
+        image: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/9.png',
+        timeLimit: 20,
+        points: 1000,
+        explanation: 'Los ataques de Tipo Planta y Eléctrico causan el doble de daño a los Pokémon de Tipo Agua.',
+        options: [
+          { id: 'opt1', text: 'Tipo Fuego', isCorrect: false },
+          { id: 'opt2', text: 'Tipo Planta y Eléctrico 🍃⚡', isCorrect: true },
+          { id: 'opt3', text: 'Tipo Roca', isCorrect: false },
+          { id: 'opt4', text: 'Tipo Hielo', isCorrect: false }
+        ]
+      },
+      {
+        id: 'pk4',
+        text: 'Este Pokémon es famoso por quedarse dormido en medio de las rutas. ¿Cuál es su nombre?',
+        image: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/143.png',
+        timeLimit: 15,
+        points: 1000,
+        explanation: 'Snorlax necesita que toquen la PokéFlauta para despertarse y despejar el camino.',
+        options: [
+          { id: 'opt1', text: 'Slaking', isCorrect: false },
+          { id: 'opt2', text: 'Slowbro', isCorrect: false },
+          { id: 'opt3', text: 'Snorlax 💤', isCorrect: true },
+          { id: 'opt4', text: 'Wobbuffet', isCorrect: false }
+        ]
+      },
+      {
+        id: 'pk5',
+        text: '¿A qué legendario Pokémon creado por ingeniería genética representa esta imagen?',
+        image: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/150.png',
+        timeLimit: 20,
+        points: 1000,
+        explanation: 'Mewtwo fue clonado a partir del ADN de Mew en el laboratorio de Isla Canela.',
+        options: [
+          { id: 'opt1', text: 'Mew', isCorrect: false },
+          { id: 'opt2', text: 'Mewtwo 🔮', isCorrect: true },
+          { id: 'opt3', text: 'Deoxys', isCorrect: false },
+          { id: 'opt4', text: 'Arceus', isCorrect: false }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'quiz-sistema-solar',
+    title: 'El Sistema Solar y la Tierra 🌍',
+    description: 'Preguntas con imágenes sobre los planetas, la Luna y nuestro planeta.',
+    category: 'Ciencias Naturales',
+    coverImage: 'https://images.unsplash.com/photo-1614728894747-a83421e2b9c9?w=800&auto=format&fit=crop&q=80',
+    createdAt: Date.now() - 86400000,
+    updatedAt: Date.now() - 86400000,
+    questions: [
+      {
+        id: 'q1',
+        text: '¿Qué planeta del Sistema Solar es conocido popularmente como el "Planeta Rojo"?',
+        image: 'https://images.unsplash.com/photo-1614728894747-a83421e2b9c9?w=800&auto=format&fit=crop&q=80',
+        timeLimit: 20,
+        points: 1000,
+        explanation: 'Marte se ve rojizo debido a la abundancia de óxido de hierro en su superficie.',
+        options: [
+          { id: 'opt1', text: 'Júpiter', isCorrect: false },
+          { id: 'opt2', text: 'Marte', isCorrect: true },
+          { id: 'opt3', text: 'Venus', isCorrect: false },
+          { id: 'opt4', text: 'Mercurio', isCorrect: false }
+        ]
+      },
+      {
+        id: 'q2',
+        text: 'Observa la imagen: ¿Qué planeta destaca por tener los anillos más vistosos y extensos?',
+        image: 'https://images.unsplash.com/photo-1614732414444-096e5f1122d5?w=800&auto=format&fit=crop&q=80',
+        timeLimit: 20,
+        points: 1000,
+        explanation: 'Saturno posee un complejo sistema de anillos compuestos por partículas de hielo y roca.',
+        options: [
+          { id: 'opt1', text: 'Saturno', isCorrect: true },
+          { id: 'opt2', text: 'Urano', isCorrect: false },
+          { id: 'opt3', text: 'Neptuno', isCorrect: false },
+          { id: 'opt4', text: 'Júpiter', isCorrect: false }
+        ]
+      },
+      {
+        id: 'q3',
+        text: '¿Cuánto tiempo tarda la Tierra en dar una vuelta completa alrededor del Sol?',
+        image: 'https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?w=800&auto=format&fit=crop&q=80',
+        timeLimit: 15,
+        points: 1000,
+        explanation: 'El movimiento de traslación tarda aproximadamente 365 días y 6 horas.',
+        options: [
+          { id: 'opt1', text: '24 horas', isCorrect: false },
+          { id: 'opt2', text: '365 días (1 año)', isCorrect: true },
+          { id: 'opt3', text: '30 días', isCorrect: false },
+          { id: 'opt4', text: '12 meses y medio', isCorrect: false }
+        ]
+      },
+      {
+        id: 'q4',
+        text: '¿Cómo se llama la fase lunar cuando la Luna está completamente iluminada?',
+        image: 'https://images.unsplash.com/photo-1522030299830-16b8d3d049fe?w=800&auto=format&fit=crop&q=80',
+        timeLimit: 20,
+        points: 1000,
+        explanation: 'En Luna Llena, la cara visible de la Luna refleja por completo la luz del Sol.',
+        options: [
+          { id: 'opt1', text: 'Luna Nueva', isCorrect: false },
+          { id: 'opt2', text: 'Cuarto Menguante', isCorrect: false },
+          { id: 'opt3', text: 'Luna Llena', isCorrect: true },
+          { id: 'opt4', text: 'Cuarto Creciente', isCorrect: false }
+        ]
+      }
+    ]
+  }
+];
