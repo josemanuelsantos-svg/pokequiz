@@ -358,7 +358,7 @@ export default function TeacherDashboard() {
                   className="bg-slate-900/90 border-2 border-slate-800 hover:border-red-500/60 rounded-3xl overflow-hidden flex flex-col transition-all hover:shadow-2xl hover:shadow-red-950/40 group relative"
                 >
                   {/* Card Cover */}
-                  <div className="h-44 bg-slate-950 relative overflow-hidden flex items-center justify-center">
+                  <div className="h-44 bg-battle-stage relative overflow-hidden flex items-center justify-center border-b border-amber-400/20">
                     {quiz.coverImage || quiz.questions[0]?.image ? (
                       <img
                         src={quiz.coverImage || quiz.questions[0]?.image}

@@ -417,79 +417,91 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
             </h1>
           </div>
 
-          <form onSubmit={handleJoin} className="bg-slate-900/90 border-2 border-red-600/60 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 shadow-red-950/40">
-            <div>
-              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2 text-center font-pokemon">
-                Elige tu Pokémon Compañero
-              </label>
-              
-              <div className="grid grid-cols-4 gap-2 max-h-56 overflow-y-auto p-1 bg-slate-950/60 rounded-2xl border border-slate-800">
-                {POKEMON_AVATARS.map((pk) => {
-                  const isSelected = selectedAvatar.id === pk.id;
-                  return (
-                    <button
-                      key={pk.id}
-                      type="button"
-                      onClick={() => setSelectedAvatar(pk)}
-                      className={`p-2 rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer relative ${
-                        isSelected
-                          ? 'bg-gradient-to-t from-red-600/40 to-amber-500/20 border-2 border-amber-400 scale-105 shadow-md shadow-amber-400/20'
-                          : 'bg-slate-900/80 border border-slate-800 hover:bg-slate-800'
-                      }`}
-                    >
-                      <img
-                        src={pk.artwork}
-                        alt={pk.name}
-                        className="w-12 h-12 object-contain drop-shadow"
-                      />
-                      <span className="text-[10px] font-bold text-white mt-1 truncate max-w-full font-pokemon">
-                        {pk.name}
-                      </span>
-                    </button>
-                  );
-                })}
+          <form onSubmit={handleJoin} className="pokedex-shell rounded-[2rem] p-4 shadow-2xl border-2 border-red-400/50">
+            <div className="flex items-center justify-between pb-3 mb-3 border-b-2 border-red-950/60">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-cyan-300 to-blue-600 border-2 border-white shadow-[0_0_10px_rgba(34,211,238,0.8)]" />
+                <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-300" />
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
               </div>
+              <span className="text-[9px] font-pixel text-amber-200">REGISTRO DE LIGA</span>
             </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider font-pokemon">
-                  Nombre de Entrenador
+            <div className="pokedex-screen rounded-2xl p-4 sm:p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-black text-sky-300 uppercase tracking-wider mb-2 text-center font-pokemon">
+                  Elige tu Pokémon Compañero
                 </label>
-                <button
-                  type="button"
-                  onClick={handleRandomNickname}
-                  className="text-[11px] text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 font-pokemon"
-                >
-                  <Dices className="w-3.5 h-3.5" />
-                  <span>Aleatorio</span>
-                </button>
-              </div>
-              <input
-                type="text"
-                maxLength={18}
-                required
-                value={nickname}
-                onChange={(e) => setNickname(e.target.value)}
-                placeholder="Ej. Ash Ketchum"
-                className="w-full text-center text-lg font-bold py-3 bg-slate-950 border-2 border-amber-400/60 rounded-xl text-amber-300 placeholder-slate-700 focus:outline-none focus:border-amber-400 font-pokemon transition-all"
-              />
-            </div>
 
-            <button
-              type="submit"
-              disabled={joining || !nickname.trim()}
-              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-red-600 via-red-500 to-amber-500 hover:from-red-500 hover:to-amber-400 text-white font-black text-base shadow-xl shadow-red-600/30 transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer disabled:opacity-50 font-pokemon uppercase tracking-wider border-b-4 border-red-800"
-            >
-              {joining ? (
-                <PokeballIcon className="w-5 h-5" spinning={true} />
-              ) : (
-                <>
-                  <PokeballIcon className="w-5 h-5" />
-                  <span>¡Iniciar Desafío!</span>
-                </>
-              )}
-            </button>
+                <div className="grid grid-cols-4 gap-2 max-h-56 overflow-y-auto p-1.5 bg-slate-950/80 rounded-2xl border border-slate-800">
+                  {POKEMON_AVATARS.map((pk) => {
+                    const isSelected = selectedAvatar.id === pk.id;
+                    return (
+                      <button
+                        key={pk.id}
+                        type="button"
+                        onClick={() => setSelectedAvatar(pk)}
+                        className={`p-2 rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer relative ${
+                          isSelected
+                            ? 'bg-gradient-to-t from-amber-500/35 to-red-500/20 border-2 border-amber-400 scale-105 shadow-lg shadow-amber-400/25'
+                            : 'bg-slate-900/90 border border-slate-800 hover:bg-slate-800 hover:border-slate-600'
+                        }`}
+                      >
+                        <img
+                          src={pk.artwork}
+                          alt={pk.name}
+                          className="w-12 h-12 object-contain drop-shadow"
+                        />
+                        <span className="text-[10px] font-bold text-white mt-1 truncate max-w-full font-pokemon">
+                          {pk.name}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-sky-200 uppercase tracking-wider font-pokemon">
+                    Nombre de Entrenador
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleRandomNickname}
+                    className="text-[11px] text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 font-pokemon cursor-pointer"
+                  >
+                    <Dices className="w-3.5 h-3.5" />
+                    <span>Aleatorio</span>
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  maxLength={18}
+                  required
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
+                  placeholder="Ej. Ash Ketchum"
+                  className="w-full text-center text-lg font-bold py-3 bg-slate-950 border-2 border-cyan-400/50 rounded-xl text-amber-300 placeholder-slate-700 focus:outline-none focus:border-amber-400 font-pokemon transition-all"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={joining || !nickname.trim()}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black text-base shadow-xl shadow-amber-500/30 transition-all flex items-center justify-center gap-2 active:translate-y-0.5 cursor-pointer disabled:opacity-50 font-pokemon uppercase tracking-wider border-b-4 border-amber-700"
+              >
+                {joining ? (
+                  <PokeballIcon className="w-5 h-5" spinning={true} />
+                ) : (
+                  <>
+                    <PokeballIcon className="w-5 h-5" />
+                    <span>¡Iniciar Desafío!</span>
+                  </>
+                )}
+              </button>
+            </div>
           </form>
         </div>
       )}
@@ -558,52 +570,74 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
 
               return (
                 <>
-                  {/* Compact Pokémon Battle Arena Strip */}
-                  <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-2.5 mb-2.5 flex items-center justify-between gap-2 shadow-lg">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <img
-                        src={myPlayer?.avatar || selectedAvatar.artwork}
-                        alt="Tu Pokémon"
-                        className="w-10 h-10 object-contain drop-shadow shrink-0"
-                      />
-                      <div className="min-w-0">
+                  {/* Authentic Pokémon Battle Arena Stage */}
+                  <div className="bg-battle-stage border-2 border-amber-400/40 rounded-3xl p-3 sm:p-4 mb-2.5 flex items-center justify-between gap-2 shadow-xl relative overflow-hidden">
+                    {/* Decorative stadium ring */}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-15">
+                      <div className="w-40 h-16 border-2 border-white rounded-full" />
+                    </div>
+
+                    {/* Player Pokémon & Status Box */}
+                    <div className="flex items-center gap-2.5 min-w-0 relative z-10">
+                      <div className="relative">
+                        <div className="w-12 h-3 bg-emerald-400/30 rounded-full blur-sm absolute -bottom-1 left-1/2 -translate-x-1/2" />
+                        <img
+                          src={myPlayer?.avatar || selectedAvatar.artwork}
+                          alt="Tu Pokémon"
+                          className="w-12 h-12 sm:w-14 sm:h-14 object-contain drop-shadow-[0_6px_10px_rgba(16,185,129,0.5)] animate-float relative"
+                        />
+                      </div>
+                      <div className="min-w-0 bg-slate-950/85 border border-emerald-400/40 rounded-xl px-2.5 py-1.5 shadow">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-black text-white truncate max-w-[90px] sm:max-w-[140px] font-pokemon">
+                          <span className="text-xs font-black text-white truncate max-w-[80px] sm:max-w-[130px] font-pokemon">
                             {myPlayer?.nickname || nickname}
                           </span>
                           <span className="text-[9px] font-pixel bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded">
                             Nv.{trainerLevel}
                           </span>
                         </div>
-                        <div className="w-20 sm:w-28 h-1.5 bg-slate-950 rounded-full overflow-hidden mt-1 border border-slate-800">
-                          <div className="h-full bg-emerald-400 w-full" />
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <span className="text-[8px] font-pixel text-emerald-400">PS</span>
+                          <div className="w-16 sm:w-24 h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
+                            <div className="h-full hp-bar-green w-full" />
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-center shrink-0 px-1">
-                      <span className="text-[10px] font-pixel text-red-400">VS</span>
+                    {/* VS Emblem */}
+                    <div className="flex flex-col items-center shrink-0 px-1 relative z-10">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-600 to-amber-500 border-2 border-white flex items-center justify-center shadow-lg">
+                        <span className="text-[9px] font-pixel text-white">VS</span>
+                      </div>
                       {isBoss && (
-                        <span className="text-[8px] font-pixel text-amber-300 bg-red-600/30 px-1.5 py-0.5 rounded border border-red-500/40 mt-0.5">
+                        <span className="text-[8px] font-pixel text-amber-200 bg-red-600 px-1.5 py-0.5 rounded border border-amber-300 mt-1 shadow">
                           JEFE
                         </span>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2 min-w-0 text-right">
-                      <div className="min-w-0">
+                    {/* Opponent Pokémon & Status Box */}
+                    <div className="flex items-center gap-2.5 min-w-0 text-right relative z-10">
+                      <div className="min-w-0 bg-slate-950/85 border border-red-400/40 rounded-xl px-2.5 py-1.5 shadow">
                         <span className="text-xs font-black text-red-300 truncate block font-pokemon">
                           {opponent.name}
                         </span>
-                        <div className="w-20 sm:w-28 h-1.5 bg-slate-950 rounded-full overflow-hidden mt-1 border border-slate-800">
-                          <div className="h-full bg-red-500 w-full" />
+                        <div className="flex items-center justify-end gap-1.5 mt-1">
+                          <div className="w-16 sm:w-24 h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
+                            <div className="h-full hp-bar-red w-full" />
+                          </div>
+                          <span className="text-[8px] font-pixel text-red-400">PS</span>
                         </div>
                       </div>
-                      <img
-                        src={opponent.art}
-                        alt={opponent.name}
-                        className="w-10 h-10 object-contain drop-shadow shrink-0"
-                      />
+                      <div className="relative">
+                        <div className="w-12 h-3 bg-red-500/30 rounded-full blur-sm absolute -bottom-1 left-1/2 -translate-x-1/2" />
+                        <img
+                          src={opponent.art}
+                          alt={opponent.name}
+                          className="w-12 h-12 sm:w-14 sm:h-14 object-contain drop-shadow-[0_6px_10px_rgba(239,68,68,0.5)] animate-float [animation-delay:0.8s] relative"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -633,7 +667,7 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
 
           {currentQuestion && !feedback && (
             <div className="flex-1 flex flex-col justify-between py-1">
-              <div className="bg-slate-900/90 border-2 border-slate-800 rounded-3xl p-4 sm:p-5 text-center relative overflow-hidden shadow-2xl">
+              <div className="pokemon-dialog-box rounded-3xl p-4 sm:p-5 text-center relative overflow-hidden">
                 <div className="absolute top-2 right-3 opacity-10">
                   <PokeballIcon className="w-24 h-24" />
                 </div>
@@ -643,11 +677,11 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
                 </h2>
 
                 {currentQuestion.image && (
-                  <div className="mt-3 rounded-2xl overflow-hidden max-h-52 sm:max-h-64 flex items-center justify-center bg-black/50 border border-slate-800 shadow-inner relative z-10">
+                  <div className="mt-3 rounded-2xl overflow-hidden max-h-52 sm:max-h-64 flex items-center justify-center bg-slate-950/70 border border-amber-400/30 shadow-inner relative z-10 p-1">
                     <img
                       src={currentQuestion.image}
                       alt="Ilustración de la pregunta"
-                      className="max-h-52 sm:max-h-64 object-contain"
+                      className="max-h-52 sm:max-h-60 object-contain rounded-xl"
                     />
                   </div>
                 )}
@@ -817,8 +851,8 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
             <p className="text-slate-400 text-xs mt-1">Has superado todas las preguntas del combate.</p>
           </div>
 
-          {/* Stats Card */}
-          <div className="bg-slate-900/90 border-2 border-amber-400/60 rounded-3xl p-5 my-4 shadow-2xl space-y-3">
+          {/* Holographic Trainer Stats Card */}
+          <div className="holo-card border-2 border-amber-400/80 rounded-3xl p-5 my-4 space-y-3">
             <div className="text-center">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-pixel">
                 EXP Total Acumulada

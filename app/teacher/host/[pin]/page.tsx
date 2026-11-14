@@ -284,31 +284,38 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
           <div className="flex flex-col items-center justify-center my-auto py-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center max-w-4xl w-full">
               {/* Instructions & Big PIN */}
-              <div className="bg-slate-900/90 border-2 border-red-600/60 rounded-3xl p-6 sm:p-8 text-center flex flex-col items-center justify-center shadow-2xl relative">
-                <div className="flex items-center gap-2 mb-2">
-                  <PokeballIcon className="w-5 h-5" />
-                  <span className="text-[11px] font-pixel text-amber-400 uppercase tracking-widest">
+              <div className="pokedex-shell border-2 border-red-400/50 rounded-[2rem] p-4 sm:p-5 text-center flex flex-col items-center justify-center shadow-2xl relative">
+                <div className="w-full flex items-center justify-between pb-3 mb-3 border-b-2 border-red-950/60">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-300 to-blue-600 border-2 border-white shadow-[0_0_10px_rgba(34,211,238,0.85)]" />
+                    <span className="w-2 h-2 rounded-full bg-red-400" />
+                    <span className="w-2 h-2 rounded-full bg-amber-300" />
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  </div>
+                  <span className="text-[10px] font-pixel text-amber-200 uppercase tracking-widest">
                     CÓDIGO DE COMBATE
                   </span>
                 </div>
-                
-                <h2 className="text-sm sm:text-base text-slate-300 font-semibold mb-2">
-                  Entra desde el móvil y pon el PIN:
-                </h2>
 
-                <div className="bg-slate-950 border-2 border-amber-400 rounded-2xl px-8 py-5 my-2 shadow-inner">
-                  <span className="text-5xl md:text-6xl font-black tracking-widest text-amber-400 font-pokemon">
-                    {session.pin}
-                  </span>
+                <div className="pokedex-screen w-full rounded-2xl p-5 flex flex-col items-center">
+                  <h2 className="text-sm sm:text-base text-sky-200 font-semibold mb-2">
+                    Entra desde tu tablet/móvil y pon el PIN:
+                  </h2>
+
+                  <div className="bg-slate-950 border-2 border-amber-400 rounded-2xl px-8 py-4 my-2 shadow-inner">
+                    <span className="text-5xl md:text-6xl font-black tracking-widest text-amber-400 font-pokemon">
+                      {session.pin}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={copyJoinLink}
+                    className="mt-3 text-xs text-sky-300 hover:text-amber-300 flex items-center gap-1.5 transition-colors cursor-pointer font-medium"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>{copiedLink ? '¡Enlace de combate copiado!' : 'Copiar enlace directo de invitación'}</span>
+                  </button>
                 </div>
-
-                <button
-                  onClick={copyJoinLink}
-                  className="mt-3 text-xs text-slate-400 hover:text-amber-300 flex items-center gap-1.5 transition-colors cursor-pointer font-medium"
-                >
-                  <Share2 className="w-3.5 h-3.5" />
-                  <span>{copiedLink ? '¡Enlace de combate copiado!' : 'Copiar enlace directo de invitación'}</span>
-                </button>
               </div>
 
               {/* QR Code Container */}

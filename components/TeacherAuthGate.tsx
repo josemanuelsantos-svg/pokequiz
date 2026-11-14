@@ -61,28 +61,32 @@ export function TeacherAuthGate({ children }: { children: React.ReactNode }) {
   if (!authorized) {
     return (
       <div className="min-h-screen bg-pokemon-pattern flex flex-col items-center justify-center p-4 relative overflow-hidden">
-        <div className="max-w-md w-full bg-slate-900/95 border-2 border-red-600/70 rounded-3xl p-6 sm:p-8 shadow-2xl relative z-10">
+        <div className="max-w-md w-full pokedex-shell rounded-[2rem] p-4 sm:p-5 border-2 border-red-400/50 shadow-2xl relative z-10">
           {/* Top Pokédex Sensor Lights */}
-          <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-6">
+          <div className="flex items-center justify-between pb-3.5 border-b-2 border-red-950/60 mb-3.5">
             <div className="flex items-center gap-2">
-              <span className="w-4 h-4 rounded-full bg-red-500 border-2 border-white shadow-lg shadow-red-500/50 animate-pulse" />
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-300 to-blue-600 border-2 border-white shadow-[0_0_12px_rgba(34,211,238,0.85)]" />
+              <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-300" />
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
             </div>
-            <span className="text-[10px] font-pixel text-amber-400 tracking-wider">SEGURIDAD DOCENTE</span>
+            <span className="text-[10px] font-pixel text-amber-200 tracking-wider bg-red-950/60 px-2.5 py-1 rounded-lg">
+              LAB. OAK
+            </span>
           </div>
 
-          <div className="text-center mb-6">
-            <div className="w-16 h-16 rounded-2xl bg-red-600/20 border-2 border-amber-400/50 flex items-center justify-center mx-auto mb-3 shadow-lg">
-              <Lock className="w-8 h-8 text-amber-400" />
+          <div className="pokedex-screen rounded-2xl p-6">
+            <div className="text-center mb-5">
+              <div className="w-16 h-16 rounded-2xl bg-amber-400/15 border-2 border-amber-400/60 flex items-center justify-center mx-auto mb-3 shadow-lg">
+                <Lock className="w-8 h-8 text-amber-400" />
+              </div>
+              <h1 className="text-2xl font-black text-white font-pokemon uppercase">
+                Laboratorio del Docente
+              </h1>
+              <p className="text-xs text-sky-200/80 mt-1">
+                Introduce la clave de Líder de Gimnasio para gestionar y lanzar las pruebas.
+              </p>
             </div>
-            <h1 className="text-2xl font-black text-white font-pokemon uppercase">
-              Laboratorio del Docente
-            </h1>
-            <p className="text-xs text-slate-400 mt-1">
-              Introduce la clave de Líder de Gimnasio para gestionar y lanzar las pruebas.
-            </p>
-          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -136,6 +140,7 @@ export function TeacherAuthGate({ children }: { children: React.ReactNode }) {
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Soy alumno • Volver a la pantalla de PIN</span>
             </Link>
+          </div>
           </div>
         </div>
       </div>
