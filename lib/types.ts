@@ -51,6 +51,13 @@ export interface Player {
 
 export type SessionStatus = 'waiting' | 'active' | 'finished';
 
+export interface SessionSettings {
+  shuffleQuestions?: boolean;
+  shuffleOptions?: boolean;
+  showExplanations?: boolean;
+  powerUpsEnabled?: boolean;
+}
+
 export interface Session {
   pin: string;
   quizId: string;
@@ -61,4 +68,5 @@ export interface Session {
   finishedAt?: number;
   questions: Question[];
   players: Record<string, Player>;
+  settings?: SessionSettings;
 }

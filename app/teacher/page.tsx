@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
   Plus, Play, Edit3, Trash2, Copy, Download, Upload, 
-  HelpCircle, Sparkles, BookOpen, Clock, ArrowLeft, Check, AlertCircle, Loader2, Swords, Award, Lock
+  HelpCircle, Sparkles, BookOpen, Clock, ArrowLeft, Check, AlertCircle, Loader2, Swords, Award, Lock, Search, Eye
 } from 'lucide-react';
 import { Quiz } from '@/lib/types';
 import { PokeballIcon, GreatBallIcon, UltraBallIcon } from '@/components/Pokeball';
@@ -16,6 +16,9 @@ export default function TeacherDashboard() {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [loading, setLoading] = useState(true);
   const [startingSessionId, setStartingSessionId] = useState<string | null>(null);
+  const [testingSoloId, setTestingSoloId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [notification, setNotification] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -90,6 +93,37 @@ export default function TeacherDashboard() {
       alert('Error de conexión al iniciar el combate');
     } finally {
       setStartingSessionId(null);
+    }
+  };
+
+  // 1-click Solo Preview as Student (creates & immediately activates a session, then opens /play/[pin])
+  const handlePreviewAsStudent = async (quizId: string) => {
+    try {
+      setTestingSoloId(quizId);
+      const quizObj = quizzes.find(q => q.id === quizId);
+      const res = await fetch('/api/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quizId, quiz: quizObj })
+      });
+      const data = await res.json();
+      if (data.success && data.data?.pin) {
+        const pin = data.data.pin;
+        await fetch(`/api/sessions/${pin}/start`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            settings: { shuffleQuestions: false, shuffleOptions: true, showExplanations: true, powerUpsEnabled: true }
+          })
+        });
+        window.open(`/play/${pin}`, '_blank');
+      } else {
+        alert(data.error || 'No se pudo abrir la vista previa');
+      }
+    } catch {
+      alert('Error al abrir la vista previa');
+    } finally {
+      setTestingSoloId(null);
     }
   };
 
@@ -271,10 +305,52 @@ export default function TeacherDashboard() {
           </div>
         )}
 
+        {/* Search & Category Filter Bar */}
+        {!loading && quizzes.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-6">
+            <div className="relative flex-1 max-w-md">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar cuestionario por título o tema..."
+                className="w-full bg-slate-900/90 border border-slate-800 focus:border-amber-400 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none font-pokemon"
+              />
+            </div>
+
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+              {['Todas', ...Array.from(new Set(quizzes.map(q => q.category).filter(Boolean)))].map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer font-pokemon ${
+                    selectedCategory === cat
+                      ? 'bg-amber-400 text-slate-950 shadow'
+                      : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-white'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Quizzes Grid */}
         {!loading && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {quizzes.map((quiz) => {
+            {quizzes
+              .filter((q) => {
+                const matchesCat = selectedCategory === 'Todas' || q.category === selectedCategory;
+                const matchesSearch =
+                  !searchQuery.trim() ||
+                  q.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  (q.description || '').toLowerCase().includes(searchQuery.toLowerCase());
+                return matchesCat && matchesSearch;
+              })
+              .map((quiz) => {
               const imageCount = quiz.questions.filter(q => !!q.image).length;
               return (
                 <div
@@ -349,6 +425,15 @@ export default function TeacherDashboard() {
                           <Edit3 className="w-3.5 h-3.5 text-amber-400" />
                           <span>Editar</span>
                         </Link>
+
+                        <button
+                          onClick={() => handlePreviewAsStudent(quiz.id)}
+                          disabled={testingSoloId === quiz.id}
+                          title="Probar como alumno en una nueva pestaña"
+                          className="p-1.5 rounded-xl bg-slate-800 hover:bg-amber-400/20 text-slate-400 hover:text-amber-300 transition-colors cursor-pointer"
+                        >
+                          {testingSoloId === quiz.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
 
                         <button
                           onClick={() => handleDuplicate(quiz)}

@@ -34,6 +34,7 @@ export default function QuizEditorPage({ params }: { params: Promise<{ id: strin
   const [imageSearchTarget, setImageSearchTarget] = useState<'question' | 'cover' | null>(null);
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [aiTopic, setAiTopic] = useState('');
+  const [aiCount, setAiCount] = useState(5);
   const [generatingAi, setGeneratingAi] = useState(false);
 
   const handleGenerateAi = async () => {
@@ -43,7 +44,7 @@ export default function QuizEditorPage({ params }: { params: Promise<{ id: strin
       const res = await fetch('/api/generate-questions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic: aiTopic.trim() })
+        body: JSON.stringify({ topic: aiTopic.trim(), count: aiCount })
       });
       const data = await res.json();
       if (data.success && data.data?.length > 0) {
@@ -585,7 +586,7 @@ export default function QuizEditorPage({ params }: { params: Promise<{ id: strin
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2.5">
               <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs">
                 <Clock className="w-3.5 h-3.5 text-amber-400" />
                 <span className="text-slate-400 font-pokemon">Tiempo:</span>
@@ -600,6 +601,20 @@ export default function QuizEditorPage({ params }: { params: Promise<{ id: strin
                   <option value={30} className="bg-slate-900 text-white">30 seg</option>
                   <option value={45} className="bg-slate-900 text-white">45 seg</option>
                   <option value={60} className="bg-slate-900 text-white">60 seg</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs">
+                <Zap className="w-3.5 h-3.5 text-amber-400" />
+                <span className="text-slate-400 font-pokemon">EXP:</span>
+                <select
+                  value={currentQuestion.points || 1000}
+                  onChange={(e) => updateCurrentQuestion({ points: Number(e.target.value) })}
+                  className="bg-transparent text-amber-300 font-black focus:outline-none cursor-pointer font-pokemon"
+                >
+                  <option value={1000} className="bg-slate-900 text-white">1000 (Normal)</option>
+                  <option value={1500} className="bg-slate-900 text-white">1500 (Difícil)</option>
+                  <option value={2000} className="bg-slate-900 text-white">2000 (Jefe Final)</option>
                 </select>
               </div>
 
@@ -921,16 +936,34 @@ export default function QuizEditorPage({ params }: { params: Promise<{ id: strin
               </div>
 
               <div className="flex flex-wrap gap-1.5 pt-1">
-                {['Pokémon Iniciales', 'Evoluciones', 'Ciencias Naturales', 'Historia'].map((sug) => (
+                {['Tablas de multiplicar', 'Fracciones', 'Lengua y Ortografía', 'Inglés 4º', 'Ciencias Naturales', 'Geografía e Historia', 'Pokémon'].map((sug) => (
                   <button
                     key={sug}
                     type="button"
                     onClick={() => setAiTopic(sug)}
-                    className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg border border-slate-700"
+                    className="text-[11px] bg-slate-800 hover:bg-amber-400 hover:text-slate-950 text-slate-300 px-2.5 py-1 rounded-lg border border-slate-700 transition-colors cursor-pointer"
                   >
                     {sug}
                   </button>
                 ))}
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-xs text-slate-400 font-bold">Cantidad de preguntas:</span>
+                <div className="flex gap-1.5">
+                  {[3, 5, 10].map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setAiCount(n)}
+                      className={`px-3 py-1 rounded-lg text-xs font-black cursor-pointer transition-all ${
+                        aiCount === n ? 'bg-amber-400 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <button

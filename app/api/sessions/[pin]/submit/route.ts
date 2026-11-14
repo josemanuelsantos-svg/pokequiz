@@ -52,9 +52,10 @@ export async function POST(
     let scoreEarned = 0;
     if (isCorrect) {
       const maxTime = question.timeLimit || 20;
+      const maxPoints = question.points || 1000;
       const safeTimeSpent = Math.max(0.5, Math.min(timeSpent || 1, maxTime));
       const speedRatio = Math.max(0, 1 - (safeTimeSpent / maxTime));
-      const basePoints = Math.round(600 + speedRatio * 400);
+      const basePoints = Math.round(maxPoints * (0.6 + speedRatio * 0.4));
 
       // Streak bonus: +100 for streak >= 2, +200 for streak >= 3
       const currentStreak = player.streak + 1;

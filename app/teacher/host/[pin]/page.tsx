@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import React, { useState, useEffect, use } from 'react';
+import React, { useState, useEffect, use, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import QRCode from 'qrcode';
@@ -10,9 +10,10 @@ import confetti from 'canvas-confetti';
 import { 
   Trophy, Users, Play, StopCircle, ArrowLeft, Sparkles, 
   Flame, CheckCircle, BarChart3, Clock, Share2, Volume2, VolumeX, 
-  Music, Swords, Award, Zap, X, ChevronRight, HelpCircle, Eye, Download
+  Music, Swords, Award, Zap, X, ChevronRight, HelpCircle, Eye, Download,
+  Shuffle, AlertTriangle, ShieldCheck
 } from 'lucide-react';
-import { Session, Player } from '@/lib/types';
+import { Session, Player, SessionSettings } from '@/lib/types';
 import { sounds } from '@/lib/sound';
 import { PokeballIcon, GreatBallIcon, UltraBallIcon } from '@/components/Pokeball';
 
@@ -30,6 +31,13 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
   // Tab in finished mode: 'podium' or 'analytics'
   const [finishedTab, setFinishedTab] = useState<'podium' | 'analytics'>('podium');
   const [selectedQuestionModal, setSelectedQuestionModal] = useState<number | null>(null);
+  const prevPlayerCountRef = useRef<number>(0);
+  const [lobbySettings, setLobbySettings] = useState<SessionSettings>({
+    shuffleQuestions: false,
+    shuffleOptions: true,
+    showExplanations: true,
+    powerUpsEnabled: true,
+  });
 
   const toggleSound = () => {
     const next = !soundEnabled;
@@ -53,6 +61,11 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
       const res = await fetch(`/api/sessions/${pin}`);
       const data = await res.json();
       if (data.success && data.data) {
+        const incomingCount = Object.keys(data.data.players || {}).length;
+        if (data.data.status === 'waiting' && incomingCount > prevPlayerCountRef.current && prevPlayerCountRef.current >= 0) {
+          if (incomingCount > 0) sounds.playClick();
+        }
+        prevPlayerCountRef.current = incomingCount;
         setSession(data.data);
       }
     } catch (err) {
@@ -80,7 +93,11 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
   const handleStartGame = async () => {
     sounds.playCorrect();
     try {
-      const res = await fetch(`/api/sessions/${pin}/start`, { method: 'POST' });
+      const res = await fetch(`/api/sessions/${pin}/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: lobbySettings }),
+      });
       const data = await res.json();
       if (data.success) {
         setSession(data.data);
@@ -119,6 +136,11 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
       });
       const data = await res.json();
       if (data.success && data.data) {
+        const incomingCount = Object.keys(data.data.players || {}).length;
+        if (data.data.status === 'waiting' && incomingCount > prevPlayerCountRef.current && prevPlayerCountRef.current >= 0) {
+          if (incomingCount > 0) sounds.playClick();
+        }
+        prevPlayerCountRef.current = incomingCount;
         setSession(data.data);
       }
     } catch (err) {
@@ -310,8 +332,75 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
               </div>
             </div>
 
+            {/* Lobby Game Rules Toggles */}
+            <div className="w-full max-w-4xl mt-6 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <button
+                type="button"
+                onClick={() => setLobbySettings(s => ({ ...s, shuffleQuestions: !s.shuffleQuestions }))}
+                className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                  lobbySettings.shuffleQuestions
+                    ? 'bg-amber-400/15 border-amber-400 text-amber-200'
+                    : 'bg-slate-900/70 border-slate-800 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <Shuffle className="w-4 h-4 shrink-0 text-amber-400" />
+                <div>
+                  <span className="text-xs font-black block font-pokemon">Barajar Preguntas</span>
+                  <span className="text-[10px] opacity-80">{lobbySettings.shuffleQuestions ? 'Activado (anti-copia)' : 'Orden original'}</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setLobbySettings(s => ({ ...s, shuffleOptions: !s.shuffleOptions }))}
+                className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                  lobbySettings.shuffleOptions
+                    ? 'bg-amber-400/15 border-amber-400 text-amber-200'
+                    : 'bg-slate-900/70 border-slate-800 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <Sparkles className="w-4 h-4 shrink-0 text-amber-400" />
+                <div>
+                  <span className="text-xs font-black block font-pokemon">Barajar Opciones</span>
+                  <span className="text-[10px] opacity-80">{lobbySettings.shuffleOptions ? 'Activado' : 'Orden fijo'}</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setLobbySettings(s => ({ ...s, powerUpsEnabled: !s.powerUpsEnabled }))}
+                className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                  lobbySettings.powerUpsEnabled
+                    ? 'bg-emerald-500/15 border-emerald-400 text-emerald-200'
+                    : 'bg-slate-900/70 border-slate-800 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <Zap className="w-4 h-4 shrink-0 text-emerald-400" />
+                <div>
+                  <span className="text-xs font-black block font-pokemon">Comodines (50/50)</span>
+                  <span className="text-[10px] opacity-80">{lobbySettings.powerUpsEnabled ? 'Mochila activa' : 'Desactivados'}</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setLobbySettings(s => ({ ...s, showExplanations: !s.showExplanations }))}
+                className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                  lobbySettings.showExplanations
+                    ? 'bg-sky-500/15 border-sky-400 text-sky-200'
+                    : 'bg-slate-900/70 border-slate-800 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <ShieldCheck className="w-4 h-4 shrink-0 text-sky-400" />
+                <div>
+                  <span className="text-xs font-black block font-pokemon">Explicaciones</span>
+                  <span className="text-[10px] opacity-80">{lobbySettings.showExplanations ? 'Mostrar al fallar/acertar' : 'Ocultas'}</span>
+                </div>
+              </button>
+            </div>
+
             {/* Players Joined Counter & Avatars list */}
-            <div className="w-full max-w-4xl mt-8">
+            <div className="w-full max-w-4xl mt-6">
               <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
                 <div className="flex items-center gap-2">
                   <Users className="w-5 h-5 text-amber-400" />
@@ -375,7 +464,9 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
                 <div>
                   <h3 className="text-sm font-black text-white font-pokemon uppercase">Progreso del Combate</h3>
                   <p className="text-xs text-slate-400">
-                    {finishedCount} entrenador{finishedCount !== 1 ? 'es' : ''} ha{finishedCount !== 1 ? 'n' : ''} superado todas las preguntas
+                    {playersList.length > 0 && finishedCount === playersList.length
+                      ? '🎉 ¡Todos los entrenadores han terminado! Ya puedes mostrar el Podio.'
+                      : `${finishedCount} entrenador${finishedCount !== 1 ? 'es' : ''} ha${finishedCount !== 1 ? 'n' : ''} superado todas las preguntas`}
                   </p>
                 </div>
               </div>
@@ -570,6 +661,54 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
                     </div>
                   )}
                 </div>
+
+                {/* Full Class Standings Table (4th+ and all players summary) */}
+                {playersList.length > 0 && (
+                  <div className="w-full max-w-3xl bg-slate-900/90 border-2 border-slate-800 rounded-3xl overflow-hidden shadow-xl mb-4">
+                    <div className="px-5 py-3 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between">
+                      <span className="text-xs font-black text-amber-400 uppercase font-pokemon">
+                        Clasificación Completa de la Clase ({playersList.length})
+                      </span>
+                      <span className="text-[11px] text-slate-400">
+                        Nota media: {(() => {
+                          const avg = playersList.reduce((acc, p) => acc + ((p.answers.filter(a => a.isCorrect).length / (totalQuestions || 1)) * 10), 0) / playersList.length;
+                          return avg.toFixed(1);
+                        })()} / 10
+                      </span>
+                    </div>
+                    <div className="divide-y divide-slate-800/80 max-h-72 overflow-y-auto">
+                      {playersList.map((p, idx) => {
+                        const correct = p.answers.filter(a => a.isCorrect).length;
+                        const pct = totalQuestions > 0 ? Math.round((correct / totalQuestions) * 100) : 0;
+                        return (
+                          <div key={p.id} className="px-5 py-2.5 flex items-center justify-between gap-3 text-xs">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <span className={`w-6 h-6 rounded-lg flex items-center justify-center font-black shrink-0 font-pokemon ${
+                                idx === 0 ? 'bg-amber-400 text-slate-950' : idx === 1 ? 'bg-slate-300 text-slate-950' : idx === 2 ? 'bg-amber-700 text-white' : 'bg-slate-800 text-slate-400'
+                              }`}>
+                                {idx + 1}º
+                              </span>
+                              {p.avatar.startsWith('http') ? (
+                                <img src={p.avatar} alt={p.nickname} className="w-7 h-7 object-contain shrink-0" />
+                              ) : (
+                                <span className="text-lg">{p.avatar}</span>
+                              )}
+                              <span className="font-black text-white truncate font-pokemon">{p.nickname}</span>
+                            </div>
+                            <div className="flex items-center gap-4 shrink-0">
+                              <span className="text-slate-400 hidden sm:inline">
+                                {correct}/{totalQuestions} ({pct}%)
+                              </span>
+                              <span className="font-black text-amber-300 font-pokemon min-w-[75px] text-right">
+                                {p.score.toLocaleString()} EXP
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -621,9 +760,17 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
                             <p className="text-sm font-bold text-white group-hover:text-amber-300 transition-colors font-pokemon">
                               {q.text}
                             </p>
-                            <span className="text-[11px] text-slate-400">
-                              {correctCount} de {totalAnswers} aciertos ({accuracyPct}%)
-                            </span>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[11px] text-slate-400">
+                                {correctCount} de {totalAnswers} aciertos ({accuracyPct}%)
+                              </span>
+                              {isHard && totalAnswers > 0 && (
+                                <span className="text-[10px] font-black px-2 py-0.5 rounded bg-red-500/20 text-red-300 border border-red-500/40 inline-flex items-center gap-1">
+                                  <AlertTriangle className="w-3 h-3" />
+                                  Repasar en clase
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
 

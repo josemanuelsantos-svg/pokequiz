@@ -2,17 +2,43 @@
 
 export const dynamic = 'force-dynamic';
 
-import React, { useState, useEffect, use, useRef } from 'react';
+import React, { useState, useEffect, use, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import confetti from 'canvas-confetti';
 import { 
   Flame, Check, X, ArrowRight, Trophy, Sparkles, 
-  Volume2, VolumeX, Music, Zap, Shield, Swords, HelpCircle, ChevronDown, ChevronUp, Dices, Hourglass, Coins
+  Volume2, VolumeX, Music, Zap, Shield, Swords, HelpCircle, ChevronDown, ChevronUp, Dices, Hourglass, Coins, Home
 } from 'lucide-react';
-import { Session, Player } from '@/lib/types';
+import { Session, Player, Question } from '@/lib/types';
 import { sounds } from '@/lib/sound';
 import { POKEMON_AVATARS, PokemonAvatar } from '@/lib/pokemon-avatars';
 import { PokeballIcon } from '@/components/Pokeball';
+
+// Deterministic hash-based shuffle so each student gets a stable, unique order
+function seededShuffle<T>(arr: T[], seedStr: string): T[] {
+  const copy = [...arr];
+  let seed = 0;
+  for (let i = 0; i < seedStr.length; i++) {
+    seed = (seed * 31 + seedStr.charCodeAt(i)) >>> 0;
+  }
+  for (let i = copy.length - 1; i > 0; i--) {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    const j = seed % (i + 1);
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+const GYM_OPPONENTS = [
+  { name: 'Geodude', art: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/74.png' },
+  { name: 'Starmie', art: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/121.png' },
+  { name: 'Raichu', art: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/26.png' },
+  { name: 'Gengar', art: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/94.png' },
+  { name: 'Arcanine', art: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/59.png' },
+  { name: 'Alakazam', art: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/65.png' },
+  { name: 'Dragonite', art: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/149.png' },
+  { name: 'Mewtwo', art: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/150.png' },
+];
 
 export default function StudentPlayPage({ params }: { params: Promise<{ pin: string }> }) {
   const { pin } = use(params);
@@ -72,14 +98,13 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
   };
 
   const useFiftyFifty = () => {
-    if (!powerUps.fiftyFifty || !session) return;
-    const currentQ = session.questions[currentIdx];
-    if (!currentQ || currentQ.options.length <= 2) return;
+    if (!powerUps.fiftyFifty || !currentQuestion) return;
+    if (currentQuestion.options.length <= 2) return;
 
     sounds.playClick();
-    const wrongOptions = currentQ.options.filter(o => !o.isCorrect).map(o => o.id);
-    // Shuffle wrong options and pick 2 to hide
-    const toHide = wrongOptions.sort(() => 0.5 - Math.random()).slice(0, 2);
+    const wrongOptions = currentQuestion.options.filter(o => !o.isCorrect).map(o => o.id);
+    const hideCount = currentQuestion.options.length === 3 ? 1 : 2;
+    const toHide = wrongOptions.sort(() => 0.5 - Math.random()).slice(0, hideCount);
     setHiddenOptionIds(toHide);
     setPowerUps(prev => ({ ...prev, fiftyFifty: false }));
   };
@@ -165,6 +190,24 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
     return () => clearInterval(interval);
   }, [pin, playerId, feedback, currentIdx]);
 
+  // Ordered questions & options per player (supports host shuffle settings)
+  const orderedQuestions: Question[] = useMemo(() => {
+    if (!session?.questions) return [];
+    const baseQuestions = session.settings?.shuffleQuestions && playerId
+      ? seededShuffle(session.questions, `${pin}-${playerId}-q`)
+      : session.questions;
+
+    if (session.settings?.shuffleOptions && playerId) {
+      return baseQuestions.map((q) => ({
+        ...q,
+        options: seededShuffle(q.options, `${pin}-${playerId}-${q.id}-opt`),
+      }));
+    }
+    return baseQuestions;
+  }, [session?.questions, session?.settings?.shuffleQuestions, session?.settings?.shuffleOptions, playerId, pin]);
+
+  const currentQuestion = orderedQuestions[currentIdx];
+
   // Setup question timer
   useEffect(() => {
     if (!session || session.status !== 'active' || !playerId || feedback) {
@@ -172,7 +215,6 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
       return;
     }
 
-    const currentQuestion = session.questions[currentIdx];
     if (!currentQuestion) return;
 
     setTimeLeft(currentQuestion.timeLimit || 20);
@@ -185,7 +227,7 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [session?.status, currentIdx, playerId, feedback]);
+  }, [session?.status, currentIdx, playerId, feedback, currentQuestion?.id]);
 
   // Trigger timeout submission cleanly when timeLeft hits 0
   useEffect(() => {
@@ -230,7 +272,6 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
   const submitAnswer = async (optionId: string) => {
     if (answering || feedback || !session || !playerId) return;
 
-    const currentQuestion = session.questions[currentIdx];
     if (!currentQuestion) return;
 
     setAnswering(true);
@@ -506,43 +547,105 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
               </div>
             </div>
 
-            {session.questions[currentIdx] && !feedback && (
-              <div className="bg-slate-950 p-1.5 rounded-xl border border-slate-800 mb-3">
-                <div className="flex items-center justify-between text-[10px] font-pixel text-slate-400 px-1 mb-1">
-                  <span>EXP / TIEMPO</span>
-                  <span className={timeLeft <= 5 ? 'text-red-400 font-bold' : 'text-slate-300'}>
-                    {timeLeft}s
-                  </span>
-                </div>
-                <div className="w-full h-3 rounded-lg bg-slate-900 overflow-hidden p-0.5 border border-slate-800">
-                  <div
-                    className={`h-full rounded-md transition-all duration-1000 ${
-                      timeLeft <= 5 ? 'hp-bar-red' : timeLeft <= 10 ? 'hp-bar-yellow' : 'hp-bar-green'
-                    }`}
-                    style={{
-                      width: `${Math.max(0, (timeLeft / (session.questions[currentIdx].timeLimit || 20)) * 100)}%`
-                    }}
-                  />
-                </div>
-              </div>
-            )}
+            {currentQuestion && !feedback && (() => {
+              const maxT = currentQuestion.timeLimit || 20;
+              const ratio = timeLeft / maxT;
+              const trainerLevel = 1 + Math.floor((myPlayer?.score || 0) / 1000);
+              const isBoss = currentIdx === orderedQuestions.length - 1;
+              const opponent = isBoss
+                ? GYM_OPPONENTS[GYM_OPPONENTS.length - 1]
+                : GYM_OPPONENTS[currentIdx % (GYM_OPPONENTS.length - 1)];
+
+              return (
+                <>
+                  {/* Compact Pokémon Battle Arena Strip */}
+                  <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-2.5 mb-2.5 flex items-center justify-between gap-2 shadow-lg">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <img
+                        src={myPlayer?.avatar || selectedAvatar.artwork}
+                        alt="Tu Pokémon"
+                        className="w-10 h-10 object-contain drop-shadow shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-black text-white truncate max-w-[90px] sm:max-w-[140px] font-pokemon">
+                            {myPlayer?.nickname || nickname}
+                          </span>
+                          <span className="text-[9px] font-pixel bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded">
+                            Nv.{trainerLevel}
+                          </span>
+                        </div>
+                        <div className="w-20 sm:w-28 h-1.5 bg-slate-950 rounded-full overflow-hidden mt-1 border border-slate-800">
+                          <div className="h-full bg-emerald-400 w-full" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-center shrink-0 px-1">
+                      <span className="text-[10px] font-pixel text-red-400">VS</span>
+                      {isBoss && (
+                        <span className="text-[8px] font-pixel text-amber-300 bg-red-600/30 px-1.5 py-0.5 rounded border border-red-500/40 mt-0.5">
+                          JEFE
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 min-w-0 text-right">
+                      <div className="min-w-0">
+                        <span className="text-xs font-black text-red-300 truncate block font-pokemon">
+                          {opponent.name}
+                        </span>
+                        <div className="w-20 sm:w-28 h-1.5 bg-slate-950 rounded-full overflow-hidden mt-1 border border-slate-800">
+                          <div className="h-full bg-red-500 w-full" />
+                        </div>
+                      </div>
+                      <img
+                        src={opponent.art}
+                        alt={opponent.name}
+                        className="w-10 h-10 object-contain drop-shadow shrink-0"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Timer Bar */}
+                  <div className="bg-slate-950 p-1.5 rounded-xl border border-slate-800 mb-3">
+                    <div className="flex items-center justify-between text-[10px] font-pixel text-slate-400 px-1 mb-1">
+                      <span>EXP / TIEMPO</span>
+                      <span className={ratio <= 0.25 ? 'text-red-400 font-bold animate-pulse' : 'text-slate-300'}>
+                        {timeLeft}s
+                      </span>
+                    </div>
+                    <div className="w-full h-3 rounded-lg bg-slate-900 overflow-hidden p-0.5 border border-slate-800">
+                      <div
+                        className={`h-full rounded-md transition-all duration-1000 ${
+                          ratio <= 0.25 ? 'hp-bar-red' : ratio <= 0.5 ? 'hp-bar-yellow' : 'hp-bar-green'
+                        }`}
+                        style={{
+                          width: `${Math.max(0, ratio * 100)}%`
+                        }}
+                      />
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
           </div>
 
-          {session.questions[currentIdx] && !feedback && (
+          {currentQuestion && !feedback && (
             <div className="flex-1 flex flex-col justify-between py-1">
               <div className="bg-slate-900/90 border-2 border-slate-800 rounded-3xl p-4 sm:p-5 text-center relative overflow-hidden shadow-2xl">
                 <div className="absolute top-2 right-3 opacity-10">
                   <PokeballIcon className="w-24 h-24" />
                 </div>
 
-                <h2 className="text-lg sm:text-2xl font-bold text-white leading-snug font-pokemon">
-                  {session.questions[currentIdx].text}
+                <h2 className="text-lg sm:text-2xl font-bold text-white leading-snug font-pokemon relative z-10">
+                  {currentQuestion.text}
                 </h2>
 
-                {session.questions[currentIdx].image && (
-                  <div className="mt-3 rounded-2xl overflow-hidden max-h-52 sm:max-h-64 flex items-center justify-center bg-black/50 border border-slate-800 shadow-inner">
+                {currentQuestion.image && (
+                  <div className="mt-3 rounded-2xl overflow-hidden max-h-52 sm:max-h-64 flex items-center justify-center bg-black/50 border border-slate-800 shadow-inner relative z-10">
                     <img
-                      src={session.questions[currentIdx].image}
+                      src={currentQuestion.image}
                       alt="Ilustración de la pregunta"
                       className="max-h-52 sm:max-h-64 object-contain"
                     />
@@ -551,19 +654,20 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
               </div>
 
               {/* Power-ups Bar (Mochila de Entrenador) */}
+              {session.settings?.powerUpsEnabled !== false && (
               <div className="flex items-center justify-between gap-2 px-1 py-1 mb-2">
                 <span className="text-[10px] font-pixel text-slate-400">MOCHILA:</span>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={useFiftyFifty}
-                    disabled={!powerUps.fiftyFifty || session.questions[currentIdx].options.length <= 2}
+                    disabled={!powerUps.fiftyFifty || currentQuestion.options.length <= 2}
                     className={`px-2.5 py-1 rounded-xl text-[11px] font-black flex items-center gap-1 border transition-all ${
-                      powerUps.fiftyFifty
-                        ? 'bg-amber-400/20 border-amber-400 text-amber-300 hover:bg-amber-400 hover:text-slate-950 shadow-sm'
+                      powerUps.fiftyFifty && currentQuestion.options.length > 2
+                        ? 'bg-amber-400/20 border-amber-400 text-amber-300 hover:bg-amber-400 hover:text-slate-950 shadow-sm cursor-pointer'
                         : 'bg-slate-900 border-slate-800 text-slate-600 line-through cursor-not-allowed'
                     }`}
-                    title="Descarta 2 opciones incorrectas"
+                    title="Descarta opciones incorrectas"
                   >
                     <Zap className="w-3 h-3 fill-amber-400" />
                     <span>50/50</span>
@@ -575,7 +679,7 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
                     disabled={!powerUps.extraTime}
                     className={`px-2.5 py-1 rounded-xl text-[11px] font-black flex items-center gap-1 border transition-all ${
                       powerUps.extraTime
-                        ? 'bg-sky-400/20 border-sky-400 text-sky-300 hover:bg-sky-400 hover:text-slate-950 shadow-sm'
+                        ? 'bg-sky-400/20 border-sky-400 text-sky-300 hover:bg-sky-400 hover:text-slate-950 shadow-sm cursor-pointer'
                         : 'bg-slate-900 border-slate-800 text-slate-600 line-through cursor-not-allowed'
                     }`}
                     title="Añade +15 segundos a la pregunta"
@@ -592,7 +696,7 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
                       isDoubleExpActive
                         ? 'bg-emerald-400 text-slate-950 border-emerald-300 shadow-md animate-pulse'
                         : powerUps.doubleExp
-                        ? 'bg-yellow-400/20 border-yellow-400 text-yellow-300 hover:bg-yellow-400 hover:text-slate-950 shadow-sm'
+                        ? 'bg-yellow-400/20 border-yellow-400 text-yellow-300 hover:bg-yellow-400 hover:text-slate-950 shadow-sm cursor-pointer'
                         : 'bg-slate-900 border-slate-800 text-slate-600 line-through cursor-not-allowed'
                     }`}
                     title="Duplica los puntos EXP si aciertas"
@@ -602,9 +706,10 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
                   </button>
                 </div>
               </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1">
-                {session.questions[currentIdx].options.map((opt, optIdx) => {
+                {currentQuestion.options.map((opt, optIdx) => {
                   const style = attackStyles[optIdx % attackStyles.length];
                   const isHidden = hiddenOptionIds.includes(opt.id);
 
@@ -666,13 +771,13 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
                 </div>
               )}
 
-              {!feedback.isCorrect && session.questions[currentIdx] && (
+              {!feedback.isCorrect && currentQuestion && (
                 <div className="bg-emerald-950/40 border border-emerald-500/40 rounded-xl px-4 py-2 text-xs text-emerald-300 font-bold mb-3 font-pokemon">
-                  Respuesta correcta: {session.questions[currentIdx].options.find(o => o.isCorrect)?.text}
+                  Respuesta correcta: {currentQuestion.options.find(o => o.isCorrect)?.text}
                 </div>
               )}
 
-              {feedback.explanation && (
+              {feedback.explanation && session.settings?.showExplanations !== false && (
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 text-xs text-slate-300 max-w-md mx-auto mb-4 text-left">
                   <span className="text-amber-400 font-bold block mb-0.5 uppercase text-[10px] font-pixel">Datos de la Pokédex:</span>
                   {feedback.explanation}
@@ -723,7 +828,7 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800">
+            <div className="grid grid-cols-3 gap-2.5 pt-2 border-t border-slate-800">
               <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-center">
                 <span className="text-[10px] text-slate-400 block font-pixel">Aciertos</span>
                 <span className="text-lg font-black text-emerald-400 font-pokemon">
@@ -735,6 +840,19 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
                 <span className="text-lg font-black text-amber-400 font-pokemon flex items-center justify-center gap-1">
                   <Flame className="w-4 h-4 fill-amber-400" />
                   {myPlayer?.highestStreak || 0}
+                </span>
+              </div>
+              <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-center">
+                <span className="text-[10px] text-slate-400 block font-pixel">Rango</span>
+                <span className="text-xs font-black text-amber-300 font-pokemon mt-1 block">
+                  {(() => {
+                    const correct = myPlayer?.answers.filter(a => a.isCorrect).length || 0;
+                    const pct = session.questions.length > 0 ? (correct / session.questions.length) * 100 : 0;
+                    if (pct >= 90) return 'Maestro 🏆';
+                    if (pct >= 70) return 'Líder 🥇';
+                    if (pct >= 50) return 'Experto 🥈';
+                    return 'Aprendiz 🌟';
+                  })()}
                 </span>
               </div>
             </div>
@@ -753,7 +871,7 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
 
               {showReview && (
                 <div className="mt-3 space-y-2.5 divide-y divide-slate-800/80 pt-1">
-                  {session.questions.map((q, idx) => {
+                  {orderedQuestions.map((q, idx) => {
                     const ans = myPlayer.answers.find(a => a.questionId === q.id);
                     if (!ans) return null;
                     const selectedOpt = q.options.find(o => o.id === ans.selectedOptionId);
@@ -773,10 +891,10 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
                         </div>
 
                         <div className="mt-1 text-[11px] space-y-0.5 text-slate-300">
-                          {!ans.isCorrect && selectedOpt && (
+                          {!ans.isCorrect && (
                             <p className="text-red-400 flex items-center gap-1">
                               <X className="w-3 h-3 shrink-0" />
-                              <span>Tu ataque: {selectedOpt.text}</span>
+                              <span>{selectedOpt ? `Tu ataque: ${selectedOpt.text}` : '⏱️ Se agotó el tiempo'}</span>
                             </p>
                           )}
                           <p className="text-emerald-400 flex items-center gap-1 font-medium">
@@ -797,10 +915,17 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
             </div>
           )}
 
-          <div className="text-center">
+          <div className="text-center space-y-3">
             <p className="text-xs text-amber-300 font-bold font-pokemon animate-pulse">
               Mira la pantalla del Líder de Gimnasio para ver la entrega de medallas 🏅
             </p>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-black font-pokemon uppercase border border-slate-700 transition-colors"
+            >
+              <Home className="w-4 h-4 text-amber-400" />
+              <span>Volver al Inicio</span>
+            </Link>
           </div>
         </div>
       )}

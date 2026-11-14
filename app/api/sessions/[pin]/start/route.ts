@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { SessionStore } from '@/lib/storage';
+import { SessionSettings } from '@/lib/types';
 
 export async function POST(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ pin: string }> }
 ) {
   try {
@@ -11,6 +12,27 @@ export async function POST(
 
     if (!session) {
       return NextResponse.json({ success: false, error: 'Sala no encontrada' }, { status: 404 });
+    }
+
+    let settings: SessionSettings | undefined;
+    try {
+      const body = await req.json();
+      if (body && body.settings) {
+        settings = body.settings;
+      }
+    } catch {
+      // Optional body
+    }
+
+    if (settings) {
+      session.settings = settings;
+    } else if (!session.settings) {
+      session.settings = {
+        shuffleQuestions: false,
+        shuffleOptions: true,
+        showExplanations: true,
+        powerUpsEnabled: true,
+      };
     }
 
     session.status = 'active';
