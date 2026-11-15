@@ -112,3 +112,34 @@
 .animate-float {
   animation: float 3.2s ease-in-out infinite;
 }
+
+@keyframes screen-shake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-8px) rotate(-0.8deg); }
+  30% { transform: translateX(8px) rotate(0.8deg); }
+  45% { transform: translateX(-6px) rotate(-0.5deg); }
+  60% { transform: translateX(6px) rotate(0.5deg); }
+  75% { transform: translateX(-3px); }
+}
+
+.animate-shake {
+  animation: screen-shake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes electric-flash {
+  0%, 100% { box-shadow: 0 0 18px rgba(251, 191, 36, 0.55); }
+  50% { box-shadow: 0 0 40px rgba(250, 204, 21, 0.95), inset 0 0 24px rgba(250, 204, 21, 0.45); }
+}
+
+.animate-electric {
+  animation: electric-flash 0.5s ease-in-out infinite;
+}
+
+@keyframes aura-glow {
+  0%, 100% { filter: drop-shadow(0 6px 12px rgba(251, 191, 36, 0.45)); }
+  50% { filter: drop-shadow(0 8px 22px rgba(251, 191, 36, 0.85)); }
+}
+
+.animate-aura {
+  animation: aura-glow 2.2s ease-in-out infinite;
+}

@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import QRCode from 'qrcode';
 import confetti from 'canvas-confetti';
+import * as XLSX from 'xlsx';
 import { 
   Trophy, Users, Play, StopCircle, ArrowLeft, Sparkles, 
   Flame, CheckCircle, BarChart3, Clock, Share2, Volume2, VolumeX, 
@@ -157,35 +158,93 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
     }
   };
 
-  const downloadCSVReport = () => {
+  const downloadExcelReport = () => {
     if (!session) return;
-    const header = ['Posición', 'Nombre Alumno', 'Puntuación EXP', 'Aciertos', 'Total Preguntas', 'Porcentaje', 'Nota sobre 10', 'Mejor Racha'];
-    const rows = playersList.map((p, idx) => {
-      const correct = p.answers.filter(a => a.isCorrect).length;
+
+    // Sheet 1: Clasificación y Notas
+    const summaryRows = playersList.map((p, idx) => {
+      const correct = p.answers.filter((a) => a.isCorrect).length;
+      const wrong = p.answers.length - correct;
       const pct = totalQuestions > 0 ? Math.round((correct / totalQuestions) * 100) : 0;
-      const grade = ((correct / (totalQuestions || 1)) * 10).toFixed(1);
-      return [
-        idx + 1,
-        `"${p.nickname.replace(/"/g, '""')}"`,
-        p.score,
-        correct,
-        totalQuestions,
-        `${pct}%`,
-        grade,
-        p.highestStreak
-      ];
+      const grade = Number(((correct / (totalQuestions || 1)) * 10).toFixed(2));
+      const avgTime =
+        p.answers.length > 0
+          ? Number((p.answers.reduce((acc, a) => acc + (a.timeSpent || 0), 0) / p.answers.length).toFixed(1))
+          : 0;
+      return {
+        'Posición': idx + 1,
+        'Nombre Alumno': p.nickname,
+        'Puntuación EXP': p.score,
+        'Aciertos': correct,
+        'Fallos': wrong,
+        'Total Preguntas': totalQuestions,
+        '% Acierto': `${pct}%`,
+        'Nota sobre 10': grade,
+        'Mejor Racha': p.highestStreak,
+        'Tiempo Medio (s)': avgTime,
+      };
     });
 
-    const csvContent = '\uFEFF' + [header.join(';'), ...rows.map(r => r.join(';'))].join('\r\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `Calificaciones_${session.quizTitle.replace(/\s+/g, '_')}_PIN_${session.pin}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    // Sheet 2: Análisis por Pregunta
+    const questionRows = session.questions.map((q, idx) => {
+      let correctCount = 0;
+      let totalAnswers = 0;
+      playersList.forEach((p) => {
+        const ans = p.answers.find((a) => a.questionId === q.id);
+        if (ans) {
+          totalAnswers++;
+          if (ans.isCorrect) correctCount++;
+        }
+      });
+      const pct = totalAnswers > 0 ? Math.round((correctCount / totalAnswers) * 100) : 0;
+      const correctOpt = q.options.find((o) => o.isCorrect)?.text || '';
+      return {
+        'Nº': idx + 1,
+        'Enunciado': q.text,
+        'Respuesta Correcta': correctOpt,
+        'Aciertos': correctCount,
+        'Total Respuestas': totalAnswers,
+        '% Acierto': `${pct}%`,
+        'Estado': pct < 50 ? 'Repasar en clase' : pct >= 75 ? 'Dominada' : 'Normal',
+      };
+    });
+
+    // Sheet 3: Matriz Detalle por Alumno y Pregunta
+    const detailRows = playersList.map((p) => {
+      const row: Record<string, string | number> = {
+        'Alumno': p.nickname,
+        'EXP Total': p.score,
+      };
+      session.questions.forEach((q, idx) => {
+        const ans = p.answers.find((a) => a.questionId === q.id);
+        if (!ans) {
+          row[`P${idx + 1}`] = '-';
+        } else if (ans.isCorrect) {
+          row[`P${idx + 1}`] = `OK (+${ans.scoreEarned})`;
+        } else if (!ans.selectedOptionId) {
+          row[`P${idx + 1}`] = 'Tiempo agotado';
+        } else {
+          row[`P${idx + 1}`] = 'Fallo';
+        }
+      });
+      return row;
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws1 = XLSX.utils.json_to_sheet(summaryRows);
+    const ws2 = XLSX.utils.json_to_sheet(questionRows);
+    const ws3 = XLSX.utils.json_to_sheet(detailRows);
+
+    XLSX.utils.book_append_sheet(wb, ws1, 'Clasificacion');
+    XLSX.utils.book_append_sheet(wb, ws2, 'Analisis_Preguntas');
+    XLSX.utils.book_append_sheet(wb, ws3, 'Detalle_Alumnos');
+
+    const safeTitle = session.quizTitle
+      .replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_-]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 40);
+
+    XLSX.writeFile(wb, `Batalla_${safeTitle}_PIN_${session.pin}.xls`, { bookType: 'xls' });
   };
 
   if (loading && !session) {
@@ -848,11 +907,11 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
             {/* Bottom Actions */}
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <button
-                onClick={downloadCSVReport}
+                onClick={downloadExcelReport}
                 className="px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-lg shadow-emerald-600/30 transition-all font-pokemon uppercase tracking-wider flex items-center gap-2 cursor-pointer border-b-2 border-emerald-800"
               >
                 <Download className="w-4 h-4" />
-                <span>Descargar Calificaciones (Excel / CSV)</span>
+                <span>Descargar Excel (.xls) de la Batalla</span>
               </button>
 
               <Link

@@ -96,6 +96,12 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
   } | null>(null);
   const [attackFeedback, setAttackFeedback] = useState<string | null>(null);
   const [launchingAttack, setLaunchingAttack] = useState(false);
+  const [isShaking, setIsShaking] = useState(false);
+
+  const triggerShake = () => {
+    setIsShaking(true);
+    setTimeout(() => setIsShaking(false), 500);
+  };
 
   const handleRandomNickname = () => {
     const prefixes = ['Pikachu', 'Charizard', 'Gengar', 'Eevee', 'Lucario', 'Mewtwo', 'Blastoise', 'Snorlax', 'Rayquaza'];
@@ -193,12 +199,14 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
           ) {
             processedEffectIdsRef.current.add(p.activeEffect.id);
             const eff = p.activeEffect;
-            sounds.playIncorrect();
+            triggerShake();
             setIncomingAlert({ type: eff.type, fromNickname: eff.fromNickname });
 
             if (eff.type === 'paralyze') {
+              sounds.playElectricZap();
               setParalyzedSec(3);
             } else if (eff.type === 'steal_time') {
+              sounds.playTimeDrain();
               setTimeLeft((prev) => Math.max(3, prev - 5));
             }
 
@@ -367,9 +375,15 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
       if (data.success) {
         setFeedback(data.data);
         if (data.data.isCorrect) {
-          sounds.playCorrect();
+          if (data.data.streak >= 2 && data.data.streak % 2 === 0) {
+            sounds.playStreakBoost();
+            confetti({ particleCount: 45, spread: 60, origin: { y: 0.7 } });
+          } else {
+            sounds.playCorrect();
+          }
         } else {
           sounds.playIncorrect();
+          triggerShake();
         }
       }
     } catch (err) {
@@ -607,7 +621,7 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
 
       {/* ================= STEP 3: POKEMON BATTLE / QUESTION SCREEN ================= */}
       {playerId && session.status === 'active' && !isFinished && (
-        <div className="max-w-2xl w-full mx-auto flex-1 flex flex-col justify-between relative z-10">
+        <div className={`max-w-2xl w-full mx-auto flex-1 flex flex-col justify-between relative z-10 ${isShaking ? 'animate-shake' : ''}`}>
           <div>
             <div className="flex items-center justify-between pb-2 text-xs font-pokemon">
               <div className="flex items-center gap-2">
@@ -864,7 +878,7 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
 
               <div className="relative">
                 {paralyzedSec > 0 && (
-                  <div className="absolute inset-0 z-20 bg-amber-400/20 backdrop-blur-[2px] border-2 border-amber-300 rounded-2xl flex flex-col items-center justify-center text-center p-4">
+                  <div className="absolute inset-0 z-20 bg-amber-400/25 backdrop-blur-[2px] border-2 border-amber-300 rounded-2xl flex flex-col items-center justify-center text-center p-4 animate-electric">
                     <span className="text-3xl animate-bounce">⚡</span>
                     <span className="text-sm font-black text-amber-300 font-pokemon uppercase drop-shadow">
                       ¡PARALIZADO! ({paralyzedSec}s)
