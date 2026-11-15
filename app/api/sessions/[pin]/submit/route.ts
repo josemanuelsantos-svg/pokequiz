@@ -69,6 +69,15 @@ export async function POST(
       if (player.streak > player.highestStreak) {
         player.highestStreak = player.streak;
       }
+
+      // Grant an attack charge every 2 consecutive correct answers when PvP attacks are enabled
+      if (
+        session.settings?.pvpAttacksEnabled !== false &&
+        currentStreak > 0 &&
+        currentStreak % 2 === 0
+      ) {
+        player.attackCharges = Math.min(2, (player.attackCharges || 0) + 1);
+      }
     } else {
       player.streak = 0;
     }

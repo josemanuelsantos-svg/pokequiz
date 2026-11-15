@@ -32,6 +32,7 @@ export async function POST(
         shuffleOptions: true,
         showExplanations: true,
         powerUpsEnabled: true,
+        pvpAttacksEnabled: true,
       };
     }
 

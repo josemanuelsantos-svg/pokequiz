@@ -34,6 +34,22 @@ export interface PlayerAnswer {
   answeredAt: number;
 }
 
+export interface ActiveAttackEffect {
+  id: string;
+  type: 'paralyze' | 'steal_time';
+  fromNickname: string;
+  fromAvatar: string;
+  createdAt: number;
+  expiresAt: number;
+}
+
+export interface BattleLogEntry {
+  id: string;
+  text: string;
+  type: 'paralyze' | 'steal_time';
+  createdAt: number;
+}
+
 export interface Player {
   id: string;
   nickname: string;
@@ -47,6 +63,8 @@ export interface Player {
   finishedAt?: number;
   joinedAt: number;
   lastActiveAt: number;
+  attackCharges?: number;
+  activeEffect?: ActiveAttackEffect | null;
 }
 
 export type SessionStatus = 'waiting' | 'active' | 'finished';
@@ -56,6 +74,7 @@ export interface SessionSettings {
   shuffleOptions?: boolean;
   showExplanations?: boolean;
   powerUpsEnabled?: boolean;
+  pvpAttacksEnabled?: boolean;
 }
 
 export interface Session {
@@ -69,4 +88,5 @@ export interface Session {
   questions: Question[];
   players: Record<string, Player>;
   settings?: SessionSettings;
+  battleLog?: BattleLogEntry[];
 }

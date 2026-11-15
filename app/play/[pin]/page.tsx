@@ -87,6 +87,16 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
   const [hiddenOptionIds, setHiddenOptionIds] = useState<string[]>([]);
   const [isDoubleExpActive, setIsDoubleExpActive] = useState(false);
 
+  // PvP Attack & Incoming Status Effects
+  const processedEffectIdsRef = useRef<Set<string>>(new Set());
+  const [paralyzedSec, setParalyzedSec] = useState<number>(0);
+  const [incomingAlert, setIncomingAlert] = useState<{
+    type: 'paralyze' | 'steal_time';
+    fromNickname: string;
+  } | null>(null);
+  const [attackFeedback, setAttackFeedback] = useState<string | null>(null);
+  const [launchingAttack, setLaunchingAttack] = useState(false);
+
   const handleRandomNickname = () => {
     const prefixes = ['Pikachu', 'Charizard', 'Gengar', 'Eevee', 'Lucario', 'Mewtwo', 'Blastoise', 'Snorlax', 'Rayquaza'];
     const suffixes = ['Pro', 'Master', 'Veloz', 'Crack', 'Feroz', 'Sabio', 'Titan', 'Star'];
@@ -173,6 +183,29 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
           } else if (!feedback && currentIdx < p.currentQuestionIndex) {
             setCurrentIdx(p.currentQuestionIndex);
           }
+
+          // Check for new incoming PvP attack effect
+          if (
+            p &&
+            p.activeEffect &&
+            p.activeEffect.expiresAt > Date.now() &&
+            !processedEffectIdsRef.current.has(p.activeEffect.id)
+          ) {
+            processedEffectIdsRef.current.add(p.activeEffect.id);
+            const eff = p.activeEffect;
+            sounds.playIncorrect();
+            setIncomingAlert({ type: eff.type, fromNickname: eff.fromNickname });
+
+            if (eff.type === 'paralyze') {
+              setParalyzedSec(3);
+            } else if (eff.type === 'steal_time') {
+              setTimeLeft((prev) => Math.max(3, prev - 5));
+            }
+
+            setTimeout(() => {
+              setIncomingAlert(null);
+            }, 3500);
+          }
         }
       } else {
         setError(data.error || 'Gimnasio no encontrado');
@@ -189,6 +222,44 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
     const interval = setInterval(fetchSession, 1800);
     return () => clearInterval(interval);
   }, [pin, playerId, feedback, currentIdx]);
+
+  // Countdown for paralysis lock (3 seconds)
+  useEffect(() => {
+    if (paralyzedSec <= 0) return;
+    const t = setTimeout(() => setParalyzedSec((s) => Math.max(0, s - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [paralyzedSec]);
+
+  const handleLaunchAttack = async (attackType: 'paralyze' | 'steal_time') => {
+    if (!playerId || launchingAttack) return;
+    try {
+      setLaunchingAttack(true);
+      sounds.playClick();
+      const res = await fetch(`/api/sessions/${pin}/attack`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerId, attackType }),
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        sounds.playCorrect();
+        const label =
+          attackType === 'paralyze'
+            ? `⚡ ¡Impactrueno sobre ${data.data.targetNickname}! (Paralizado 3s)`
+            : `🔥 ¡Llama Temporal sobre ${data.data.targetNickname}! (-5s)`;
+        setAttackFeedback(label);
+        setTimeout(() => setAttackFeedback(null), 3000);
+        fetchSession();
+      } else {
+        setAttackFeedback(data.error || 'No se pudo lanzar el ataque');
+        setTimeout(() => setAttackFeedback(null), 2500);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLaunchingAttack(false);
+    }
+  };
 
   // Ordered questions & options per player (supports host shuffle settings)
   const orderedQuestions: Question[] = useMemo(() => {
@@ -742,6 +813,65 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
               </div>
               )}
 
+              {/* PvP Special Attack Bar (Unlocked every 2 streak) */}
+              {session.settings?.pvpAttacksEnabled !== false && ((myPlayer?.attackCharges || 0) > 0 || attackFeedback) && (
+                <div className="bg-gradient-to-r from-amber-500/20 via-red-600/20 to-amber-500/20 border-2 border-amber-400 rounded-2xl p-2.5 my-1.5 flex flex-wrap items-center justify-between gap-2 shadow-lg animate-in zoom-in-95">
+                  {attackFeedback ? (
+                    <span className="text-xs font-black text-amber-300 font-pokemon mx-auto">
+                      {attackFeedback}
+                    </span>
+                  ) : (
+                    <>
+                      <span className="text-[10px] font-pixel text-amber-300 flex items-center gap-1">
+                        <Zap className="w-3.5 h-3.5 fill-amber-400 text-amber-400 animate-pulse" />
+                        ATAQUE LISTO ({myPlayer?.attackCharges}):
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={launchingAttack}
+                          onClick={() => handleLaunchAttack('paralyze')}
+                          className="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[11px] flex items-center gap-1 shadow cursor-pointer font-pokemon active:scale-95"
+                        >
+                          ⚡ Paralizar Rival (3s)
+                        </button>
+                        <button
+                          type="button"
+                          disabled={launchingAttack}
+                          onClick={() => handleLaunchAttack('steal_time')}
+                          className="px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-[11px] flex items-center gap-1 shadow cursor-pointer font-pokemon active:scale-95"
+                        >
+                          🔥 Quitar Tiempo (-5s)
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Incoming Enemy Attack Alert Banner */}
+              {incomingAlert && (
+                <div className={`rounded-2xl p-2.5 my-1 text-center font-black text-xs font-pokemon border-2 animate-bounce ${
+                  incomingAlert.type === 'paralyze'
+                    ? 'bg-amber-400 text-slate-950 border-white shadow-lg shadow-amber-400/50'
+                    : 'bg-red-600 text-white border-amber-300 shadow-lg shadow-red-600/50'
+                }`}>
+                  {incomingAlert.type === 'paralyze'
+                    ? `⚡ ¡${incomingAlert.fromNickname} te ha lanzado IMPACTRUENO! ¡Paralizado ${paralyzedSec}s!`
+                    : `🔥 ¡${incomingAlert.fromNickname} usó LLAMA TEMPORAL! ¡Te quitó 5 segundos!`}
+                </div>
+              )}
+
+              <div className="relative">
+                {paralyzedSec > 0 && (
+                  <div className="absolute inset-0 z-20 bg-amber-400/20 backdrop-blur-[2px] border-2 border-amber-300 rounded-2xl flex flex-col items-center justify-center text-center p-4">
+                    <span className="text-3xl animate-bounce">⚡</span>
+                    <span className="text-sm font-black text-amber-300 font-pokemon uppercase drop-shadow">
+                      ¡PARALIZADO! ({paralyzedSec}s)
+                    </span>
+                  </div>
+                )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1">
                 {currentQuestion.options.map((opt, optIdx) => {
                   const style = attackStyles[optIdx % attackStyles.length];
@@ -762,7 +892,7 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
                     <button
                       key={opt.id}
                       onClick={() => submitAnswer(opt.id)}
-                      disabled={answering}
+                      disabled={answering || paralyzedSec > 0}
                       className={`min-h-[70px] sm:min-h-[85px] p-3.5 rounded-2xl font-bold text-base sm:text-lg text-white shadow-lg border-b-4 transition-all flex items-center gap-3 active:scale-95 cursor-pointer disabled:opacity-50 ${style.bg}`}
                     >
                       <span className="w-9 h-9 rounded-xl bg-black/25 flex items-center justify-center text-lg shrink-0">
@@ -772,6 +902,7 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
                     </button>
                   );
                 })}
+              </div>
               </div>
             </div>
           )}

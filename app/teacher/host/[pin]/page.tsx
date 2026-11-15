@@ -37,6 +37,7 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
     shuffleOptions: true,
     showExplanations: true,
     powerUpsEnabled: true,
+    pvpAttacksEnabled: true,
   });
 
   const toggleSound = () => {
@@ -340,7 +341,7 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
             </div>
 
             {/* Lobby Game Rules Toggles */}
-            <div className="w-full max-w-4xl mt-6 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <div className="w-full max-w-4xl mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
               <button
                 type="button"
                 onClick={() => setLobbySettings(s => ({ ...s, shuffleQuestions: !s.shuffleQuestions }))}
@@ -401,7 +402,23 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
                 <ShieldCheck className="w-4 h-4 shrink-0 text-sky-400" />
                 <div>
                   <span className="text-xs font-black block font-pokemon">Explicaciones</span>
-                  <span className="text-[10px] opacity-80">{lobbySettings.showExplanations ? 'Mostrar al fallar/acertar' : 'Ocultas'}</span>
+                  <span className="text-[10px] opacity-80">{lobbySettings.showExplanations ? 'Mostrar tras responder' : 'Ocultas'}</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setLobbySettings(s => ({ ...s, pvpAttacksEnabled: !s.pvpAttacksEnabled }))}
+                className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center gap-2.5 col-span-2 sm:col-span-1 ${
+                  lobbySettings.pvpAttacksEnabled
+                    ? 'bg-red-500/20 border-red-400 text-red-200'
+                    : 'bg-slate-900/70 border-slate-800 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <Flame className="w-4 h-4 shrink-0 text-red-400" />
+                <div>
+                  <span className="text-xs font-black block font-pokemon">Ataques PvP</span>
+                  <span className="text-[10px] opacity-80">{lobbySettings.pvpAttacksEnabled ? 'Paralizar / -5s' : 'Desactivados'}</span>
                 </div>
               </button>
             </div>
@@ -485,6 +502,32 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
                 </span>
               </div>
             </div>
+
+            {/* Live PvP Battle Log Ticker */}
+            {session.battleLog && session.battleLog.length > 0 && (
+              <div className="bg-gradient-to-r from-red-950/70 via-slate-900/90 to-amber-950/60 border-2 border-amber-400/40 rounded-2xl p-3 shadow-lg">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Zap className="w-4 h-4 text-amber-400 fill-amber-400 animate-pulse" />
+                  <span className="text-[10px] font-pixel text-amber-300 uppercase tracking-wider">
+                    ÚLTIMOS ATAQUES EN LA ARENA
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {session.battleLog.slice(0, 3).map((entry) => (
+                    <span
+                      key={entry.id}
+                      className={`text-xs font-bold px-3 py-1 rounded-xl border font-pokemon ${
+                        entry.type === 'paralyze'
+                          ? 'bg-amber-400/15 border-amber-400/40 text-amber-200'
+                          : 'bg-red-500/15 border-red-400/40 text-red-200'
+                      }`}
+                    >
+                      {entry.text}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="bg-slate-900/90 border-2 border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
               <div className="p-4 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between">
