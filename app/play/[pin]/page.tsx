@@ -13,6 +13,7 @@ import { Session, Player, Question } from '@/lib/types';
 import { sounds } from '@/lib/sound';
 import { POKEMON_AVATARS, PokemonAvatar } from '@/lib/pokemon-avatars';
 import { PokeballIcon } from '@/components/Pokeball';
+import { getRewardForRank } from '@/lib/rewards';
 
 // Deterministic hash-based shuffle so each student gets a stable, unique order
 function seededShuffle<T>(arr: T[], seedStr: string): T[] {
@@ -1006,6 +1007,47 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
                 {(myPlayer?.score || 0).toLocaleString()} EXP
               </p>
             </div>
+
+            {(() => {
+              const sortedPlayers = Object.values(session.players).sort((a, b) => b.score - a.score);
+              const myRankIdx = sortedPlayers.findIndex((p) => p.id === playerId);
+              const myRank = myRankIdx >= 0 ? myRankIdx + 1 : 0;
+              const myReward = session.status === 'finished' && myRank > 0 ? getRewardForRank(myRank) : null;
+
+              if (session.status !== 'finished') {
+                return (
+                  <div className="bg-slate-950/75 border border-slate-800 rounded-2xl p-2.5 text-center text-[11px] text-amber-300/90 font-pokemon">
+                    ⏳ Esperando a que el Líder de Gimnasio cierre la batalla para revelar tu premio oficial Top 6...
+                  </div>
+                );
+              }
+
+              if (myReward) {
+                return (
+                  <div className="bg-gradient-to-r from-amber-500/20 via-emerald-500/15 to-amber-500/20 border-2 border-amber-400/70 rounded-2xl p-3 text-center space-y-1.5 shadow-lg">
+                    <div className="text-xs font-black text-amber-300 font-pokemon uppercase">
+                      🎁 ¡TU PREMIO OFICIAL DE LA LIGA! ({myRank}º Puesto)
+                    </div>
+                    <div className="flex flex-wrap items-center justify-center gap-1.5">
+                      {myReward.badges.map((badge, bIdx) => (
+                        <span
+                          key={bIdx}
+                          className="text-xs font-black px-2.5 py-1 rounded-xl bg-slate-950/90 text-white border border-amber-400/50 shadow-sm font-pokemon"
+                        >
+                          {badge}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              return myRank > 0 ? (
+                <div className="bg-slate-950/75 border border-slate-800 rounded-2xl p-2.5 text-center text-xs text-slate-300 font-pokemon">
+                  Posición final: <strong className="text-white">{myRank}º</strong> de {sortedPlayers.length} entrenadores
+                </div>
+              ) : null;
+            })()}
 
             <div className="grid grid-cols-3 gap-2.5 pt-2 border-t border-slate-800">
               <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-center">

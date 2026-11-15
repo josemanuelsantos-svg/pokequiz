@@ -17,6 +17,7 @@ import {
 import { Session, Player, SessionSettings } from '@/lib/types';
 import { sounds } from '@/lib/sound';
 import { PokeballIcon, GreatBallIcon, UltraBallIcon } from '@/components/Pokeball';
+import { getRewardForRank, TOP_6_REWARDS } from '@/lib/rewards';
 
 export default function HostGamePage({ params }: { params: Promise<{ pin: string }> }) {
   const router = useRouter();
@@ -182,6 +183,7 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
         'Nota sobre 10': grade,
         'Mejor Racha': p.highestStreak,
         'Tiempo Medio (s)': avgTime,
+        'Premio Liga Escolar': getRewardForRank(idx + 1)?.summary || '-',
       };
     });
 
@@ -723,9 +725,16 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
                       </div>
                       <span className="text-sm font-black text-white truncate max-w-[110px] font-pokemon">{playersList[1].nickname}</span>
                       <span className="text-xs text-slate-400 mb-2 font-pokemon">{playersList[1].score.toLocaleString()} EXP</span>
-                      <div className="w-full h-36 bg-gradient-to-t from-slate-800 to-slate-700 rounded-t-3xl flex flex-col items-center justify-center border-t-4 border-slate-300 shadow-xl">
-                        <UltraBallIcon className="w-8 h-8 mb-1" />
-                        <span className="text-2xl font-black text-slate-300 font-pokemon">2º</span>
+                      <div className="w-full h-40 bg-gradient-to-t from-slate-800 to-slate-700 rounded-t-3xl flex flex-col items-center justify-center border-t-4 border-slate-300 shadow-xl px-1.5 text-center">
+                        <UltraBallIcon className="w-7 h-7 mb-0.5" />
+                        <span className="text-xl font-black text-slate-300 font-pokemon leading-none">2º</span>
+                        <div className="mt-1.5 flex flex-wrap justify-center gap-1">
+                          {getRewardForRank(2)?.badges.map((b, i) => (
+                            <span key={i} className="text-[9px] leading-tight font-bold bg-slate-900/80 text-sky-200 border border-slate-500/50 rounded-md px-1.5 py-0.5">
+                              {b}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   )}
@@ -743,10 +752,17 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
                       </div>
                       <span className="text-base font-black text-amber-300 truncate max-w-[130px] font-pokemon">{playersList[0].nickname}</span>
                       <span className="text-xs text-amber-200/90 font-black mb-2 font-pokemon">{playersList[0].score.toLocaleString()} EXP</span>
-                      <div className="w-full h-52 bg-gradient-to-t from-amber-600 via-amber-500 to-yellow-400 rounded-t-3xl flex flex-col items-center justify-center border-t-4 border-white shadow-2xl shadow-amber-500/40">
-                        <PokeballIcon className="w-10 h-10 mb-1" />
-                        <span className="text-4xl font-black text-white font-pokemon">1º</span>
-                        <span className="text-[10px] font-pixel text-slate-950 uppercase font-black">CAMPEÓN</span>
+                      <div className="w-full h-56 bg-gradient-to-t from-amber-600 via-amber-500 to-yellow-400 rounded-t-3xl flex flex-col items-center justify-center border-t-4 border-white shadow-2xl shadow-amber-500/40 px-2 text-center">
+                        <PokeballIcon className="w-9 h-9 mb-0.5" />
+                        <span className="text-3xl font-black text-white font-pokemon leading-none">1º</span>
+                        <span className="text-[9px] font-pixel text-slate-950 uppercase font-black mt-0.5">CAMPEÓN</span>
+                        <div className="mt-1.5 flex flex-wrap justify-center gap-1">
+                          {getRewardForRank(1)?.badges.map((b, i) => (
+                            <span key={i} className="text-[9px] leading-tight font-black bg-slate-950/85 text-amber-300 border border-amber-200/60 rounded-md px-1.5 py-0.5 shadow-sm">
+                              {b}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   )}
@@ -763,9 +779,16 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
                       </div>
                       <span className="text-sm font-black text-white truncate max-w-[110px] font-pokemon">{playersList[2].nickname}</span>
                       <span className="text-xs text-slate-400 mb-2 font-pokemon">{playersList[2].score.toLocaleString()} EXP</span>
-                      <div className="w-full h-28 bg-gradient-to-t from-amber-900 to-amber-800 rounded-t-3xl flex flex-col items-center justify-center border-t-4 border-amber-700 shadow-xl">
-                        <GreatBallIcon className="w-7 h-7 mb-1" />
-                        <span className="text-2xl font-black text-amber-400 font-pokemon">3º</span>
+                      <div className="w-full h-32 bg-gradient-to-t from-amber-900 to-amber-800 rounded-t-3xl flex flex-col items-center justify-center border-t-4 border-amber-700 shadow-xl px-1.5 text-center">
+                        <GreatBallIcon className="w-7 h-7 mb-0.5" />
+                        <span className="text-xl font-black text-amber-400 font-pokemon leading-none">3º</span>
+                        <div className="mt-1.5 flex flex-wrap justify-center gap-1">
+                          {getRewardForRank(3)?.badges.map((b, i) => (
+                            <span key={i} className="text-[9px] leading-tight font-bold bg-slate-950/75 text-amber-200 border border-amber-600/50 rounded-md px-1.5 py-0.5">
+                              {b}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   )}
@@ -789,11 +812,12 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
                       {playersList.map((p, idx) => {
                         const correct = p.answers.filter(a => a.isCorrect).length;
                         const pct = totalQuestions > 0 ? Math.round((correct / totalQuestions) * 100) : 0;
+                        const reward = getRewardForRank(idx + 1);
                         return (
                           <div key={p.id} className="px-5 py-2.5 flex items-center justify-between gap-3 text-xs">
-                            <div className="flex items-center gap-3 min-w-0">
+                            <div className="flex items-center gap-3 min-w-0 flex-wrap">
                               <span className={`w-6 h-6 rounded-lg flex items-center justify-center font-black shrink-0 font-pokemon ${
-                                idx === 0 ? 'bg-amber-400 text-slate-950' : idx === 1 ? 'bg-slate-300 text-slate-950' : idx === 2 ? 'bg-amber-700 text-white' : 'bg-slate-800 text-slate-400'
+                                idx === 0 ? 'bg-amber-400 text-slate-950' : idx === 1 ? 'bg-slate-300 text-slate-950' : idx === 2 ? 'bg-amber-700 text-white' : idx < 6 ? 'bg-emerald-900/80 text-emerald-300 border border-emerald-500/40' : 'bg-slate-800 text-slate-400'
                               }`}>
                                 {idx + 1}º
                               </span>
@@ -803,6 +827,24 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
                                 <span className="text-lg">{p.avatar}</span>
                               )}
                               <span className="font-black text-white truncate font-pokemon">{p.nickname}</span>
+                              {reward && (
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  {reward.badges.map((b, bIdx) => (
+                                    <span
+                                      key={bIdx}
+                                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                        bIdx === 0
+                                          ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
+                                          : bIdx === 1
+                                          ? 'bg-red-500/15 text-red-300 border-red-500/40'
+                                          : 'bg-amber-500/15 text-amber-300 border-amber-500/40'
+                                      }`}
+                                    >
+                                      {b}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                             <div className="flex items-center gap-4 shrink-0">
                               <span className="text-slate-400 hidden sm:inline">
@@ -818,6 +860,34 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
                     </div>
                   </div>
                 )}
+
+                {/* Official Top 6 League Rewards Reference Box */}
+                <div className="w-full max-w-3xl bg-slate-900/80 border border-amber-500/30 rounded-3xl p-4 shadow-lg mb-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-black text-amber-400 uppercase font-pokemon flex items-center gap-1.5">
+                      <span>🎁</span> Cuadro Oficial de Premios de la Liga (Top 6)
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-pixel">Entrega del Maestro/a al finalizar</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                    {Object.values(TOP_6_REWARDS).map((r) => (
+                      <div key={r.rank} className="bg-slate-950/90 border border-slate-800 rounded-xl px-3 py-2 flex items-center gap-2.5">
+                        <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black shrink-0 font-pokemon ${
+                          r.rank === 1 ? 'bg-amber-400 text-slate-950' : r.rank === 2 ? 'bg-slate-300 text-slate-950' : r.rank === 3 ? 'bg-amber-700 text-white' : 'bg-emerald-900/70 text-emerald-300 border border-emerald-500/40'
+                        }`}>
+                          {r.rank}º
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {r.badges.map((b, i) => (
+                            <span key={i} className="text-[10px] font-bold text-slate-200 bg-slate-800/90 px-1.5 py-0.5 rounded-md">
+                              {b}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
 
