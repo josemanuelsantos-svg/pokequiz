@@ -1,4 +1,5 @@
 import { Quiz } from './types';
+import { T1_RAW_QUIZZES } from './sample-data-t1';
 
 const art = (id: number) =>
   `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`;
@@ -1755,7 +1756,7 @@ const RAW_QUIZZES: RawQuiz[] = [
   },
 ];
 
-export const INITIAL_QUIZZES: Quiz[] = RAW_QUIZZES.map((q) => ({
+export const INITIAL_QUIZZES: Quiz[] = [...RAW_QUIZZES, ...T1_RAW_QUIZZES].map((q) => ({
   id: q.id,
   title: q.title,
   description: q.description,
@@ -1764,9 +1765,13 @@ export const INITIAL_QUIZZES: Quiz[] = RAW_QUIZZES.map((q) => ({
       ? 'Lengua 4º Primaria'
       : q.id.includes('mates')
         ? 'Matemáticas 4º Primaria'
-        : q.id.includes('ingles')
-          ? 'Inglés 4º Primaria'
-          : 'Torneo 4º Primaria',
+        : q.id.includes('naturales')
+          ? 'Ciencias Naturales 4º Primaria'
+          : q.id.includes('sociales')
+            ? 'Ciencias Sociales 4º Primaria'
+            : q.id.includes('ingles')
+              ? 'Inglés 4º Primaria'
+              : 'Torneo 4º Primaria',
   coverImage: q.coverImage,
   createdAt: q.createdAt,
   updatedAt: q.createdAt,
