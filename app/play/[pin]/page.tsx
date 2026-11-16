@@ -14,6 +14,7 @@ import { sounds } from '@/lib/sound';
 import { POKEMON_AVATARS, PokemonAvatar } from '@/lib/pokemon-avatars';
 import { PokeballIcon } from '@/components/Pokeball';
 import { getRewardForRank } from '@/lib/rewards';
+import { AttackOverlay, AttackAnimationData } from '@/components/AttackOverlay';
 
 // Deterministic hash-based shuffle so each student gets a stable, unique order
 function seededShuffle<T>(arr: T[], seedStr: string): T[] {
@@ -98,6 +99,9 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
   const [attackFeedback, setAttackFeedback] = useState<string | null>(null);
   const [launchingAttack, setLaunchingAttack] = useState(false);
   const [isShaking, setIsShaking] = useState(false);
+  const [attackAnimation, setAttackAnimation] = useState<AttackAnimationData | null>(null);
+  const [selectedTargetId, setSelectedTargetId] = useState<string>('');
+  const [paralysisTaps, setParalysisTaps] = useState<number>(0);
 
   const triggerShake = () => {
     setIsShaking(true);
@@ -202,9 +206,19 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
             const eff = p.activeEffect;
             triggerShake();
             setIncomingAlert({ type: eff.type, fromNickname: eff.fromNickname });
+            setAttackAnimation({
+              mode: 'incoming',
+              type: eff.type,
+              attackerNickname: eff.fromNickname,
+              attackerAvatar: eff.fromAvatar,
+              targetNickname: p.nickname,
+              targetAvatar: p.avatar,
+            });
+            setTimeout(() => setAttackAnimation(null), 2100);
 
             if (eff.type === 'paralyze') {
               sounds.playElectricZap();
+              setParalysisTaps(0);
               setParalyzedSec(3);
             } else if (eff.type === 'steal_time') {
               sounds.playTimeDrain();
@@ -247,16 +261,34 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
       const res = await fetch(`/api/sessions/${pin}/attack`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerId, attackType }),
+        body: JSON.stringify({
+          playerId,
+          attackType,
+          targetPlayerId: selectedTargetId || undefined,
+        }),
       });
       const data = await res.json();
       if (data.success && data.data) {
-        sounds.playCorrect();
+        if (attackType === 'paralyze') {
+          sounds.playElectricZap();
+        } else {
+          sounds.playTimeDrain();
+        }
+        setAttackAnimation({
+          mode: 'outgoing',
+          type: attackType,
+          attackerNickname: data.data.attackerNickname || myPlayer?.nickname || 'Tú',
+          attackerAvatar: data.data.attackerAvatar || myPlayer?.avatar,
+          targetNickname: data.data.targetNickname,
+          targetAvatar: data.data.targetAvatar,
+        });
+        setTimeout(() => setAttackAnimation(null), 2000);
         const label =
           attackType === 'paralyze'
             ? `⚡ ¡Impactrueno sobre ${data.data.targetNickname}! (Paralizado 3s)`
             : `🔥 ¡Llama Temporal sobre ${data.data.targetNickname}! (-5s)`;
         setAttackFeedback(label);
+        setSelectedTargetId('');
         setTimeout(() => setAttackFeedback(null), 3000);
         fetchSession();
       } else {
@@ -830,33 +862,57 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
 
               {/* PvP Special Attack Bar (Unlocked every 2 streak) */}
               {session.settings?.pvpAttacksEnabled !== false && ((myPlayer?.attackCharges || 0) > 0 || attackFeedback) && (
-                <div className="bg-gradient-to-r from-amber-500/20 via-red-600/20 to-amber-500/20 border-2 border-amber-400 rounded-2xl p-2.5 my-1.5 flex flex-wrap items-center justify-between gap-2 shadow-lg animate-in zoom-in-95">
+                <div className="bg-gradient-to-r from-amber-500/20 via-red-600/20 to-amber-500/20 border-2 border-amber-400 rounded-2xl p-2.5 my-1.5 flex flex-col gap-2 shadow-lg animate-in zoom-in-95">
                   {attackFeedback ? (
                     <span className="text-xs font-black text-amber-300 font-pokemon mx-auto">
                       {attackFeedback}
                     </span>
                   ) : (
                     <>
-                      <span className="text-[10px] font-pixel text-amber-300 flex items-center gap-1">
-                        <Zap className="w-3.5 h-3.5 fill-amber-400 text-amber-400 animate-pulse" />
-                        ATAQUE LISTO ({myPlayer?.attackCharges}):
-                      </span>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-[10px] font-pixel text-amber-300 flex items-center gap-1">
+                          <Zap className="w-3.5 h-3.5 fill-amber-400 text-amber-400 animate-pulse" />
+                          ATAQUE LISTO ({myPlayer?.attackCharges}):
+                        </span>
+                        {(() => {
+                          const activeRivals = Object.values(session.players)
+                            .filter((r) => r.id !== playerId && !r.isFinished)
+                            .sort((a, b) => b.score - a.score)
+                            .slice(0, 4);
+                          if (activeRivals.length === 0) return null;
+                          return (
+                            <select
+                              value={selectedTargetId}
+                              onChange={(e) => setSelectedTargetId(e.target.value)}
+                              className="bg-slate-950/90 border border-amber-400/50 text-amber-200 text-[11px] font-bold rounded-lg px-2 py-1 font-pokemon focus:outline-none focus:border-amber-300"
+                              aria-label="Elegir rival objetivo"
+                            >
+                              <option value="">🎯 Objetivo: Líder al azar</option>
+                              {activeRivals.map((r) => (
+                                <option key={r.id} value={r.id}>
+                                  🎯 {r.nickname} ({r.score} EXP)
+                                </option>
+                              ))}
+                            </select>
+                          );
+                        })()}
+                      </div>
+                      <div className="flex items-center justify-end gap-2">
                         <button
                           type="button"
                           disabled={launchingAttack}
                           onClick={() => handleLaunchAttack('paralyze')}
-                          className="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[11px] flex items-center gap-1 shadow cursor-pointer font-pokemon active:scale-95"
+                          className="flex-1 sm:flex-none px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[11px] flex items-center justify-center gap-1 shadow cursor-pointer font-pokemon active:scale-95 transition-transform"
                         >
-                          ⚡ Paralizar Rival (3s)
+                          ⚡ Impactrueno (Paraliza 3s)
                         </button>
                         <button
                           type="button"
                           disabled={launchingAttack}
                           onClick={() => handleLaunchAttack('steal_time')}
-                          className="px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-[11px] flex items-center gap-1 shadow cursor-pointer font-pokemon active:scale-95"
+                          className="flex-1 sm:flex-none px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-[11px] flex items-center justify-center gap-1 shadow cursor-pointer font-pokemon active:scale-95 transition-transform"
                         >
-                          🔥 Quitar Tiempo (-5s)
+                          🔥 Llama Temporal (-5s)
                         </button>
                       </div>
                     </>
@@ -878,12 +934,36 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
               )}
 
               <div className="relative">
+                {attackAnimation && <AttackOverlay data={attackAnimation} />}
                 {paralyzedSec > 0 && (
-                  <div className="absolute inset-0 z-20 bg-amber-400/25 backdrop-blur-[2px] border-2 border-amber-300 rounded-2xl flex flex-col items-center justify-center text-center p-4 animate-electric">
-                    <span className="text-3xl animate-bounce">⚡</span>
-                    <span className="text-sm font-black text-amber-300 font-pokemon uppercase drop-shadow">
+                  <div className="absolute inset-0 z-20 bg-slate-950/70 backdrop-blur-[3px] border-2 border-amber-300 rounded-2xl flex flex-col items-center justify-center text-center p-4 animate-electric gap-2.5">
+                    <span className="text-4xl animate-bounce">⚡</span>
+                    <span className="text-base font-black text-amber-300 font-pokemon uppercase drop-shadow">
                       ¡PARALIZADO! ({paralyzedSec}s)
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sounds.playClick();
+                        const next = paralysisTaps + 1;
+                        if (next >= 4) {
+                          sounds.playCorrect();
+                          setParalyzedSec(0);
+                          setParalysisTaps(0);
+                        } else {
+                          setParalysisTaps(next);
+                        }
+                      }}
+                      className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs font-pokemon uppercase shadow-lg shadow-amber-400/40 active:scale-90 transition-transform cursor-pointer border-b-4 border-amber-600"
+                    >
+                      ⚡ ¡Toca rápido para liberarte! ({paralysisTaps}/4)
+                    </button>
+                    <div className="w-40 h-2 bg-slate-800 rounded-full overflow-hidden border border-amber-400/40">
+                      <div
+                        className="h-full bg-amber-400 transition-all duration-150"
+                        style={{ width: `${(paralysisTaps / 4) * 100}%` }}
+                      />
+                    </div>
                   </div>
                 )}
 

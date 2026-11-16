@@ -53,6 +53,9 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
     setMusicEnabled(active);
   };
 
+  const seenBattleLogIdsRef = useRef<Set<string>>(new Set());
+  const [liveAttackFlash, setLiveAttackFlash] = useState<{ text: string; type: 'paralyze' | 'steal_time' } | null>(null);
+
   useEffect(() => {
     return () => {
       sounds.stopMusic();
@@ -69,6 +72,22 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
           if (incomingCount > 0) sounds.playClick();
         }
         prevPlayerCountRef.current = incomingCount;
+
+        // Detect new PvP attack on the live projector
+        const latestAtk = data.data.battleLog?.[0];
+        if (latestAtk && !seenBattleLogIdsRef.current.has(latestAtk.id)) {
+          seenBattleLogIdsRef.current.add(latestAtk.id);
+          if (data.data.status === 'active') {
+            if (latestAtk.type === 'paralyze') {
+              sounds.playElectricZap();
+            } else {
+              sounds.playTimeDrain();
+            }
+            setLiveAttackFlash({ text: latestAtk.text, type: latestAtk.type });
+            setTimeout(() => setLiveAttackFlash(null), 2600);
+          }
+        }
+
         setSession(data.data);
       }
     } catch (err) {
@@ -144,6 +163,22 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
           if (incomingCount > 0) sounds.playClick();
         }
         prevPlayerCountRef.current = incomingCount;
+
+        // Detect new PvP attack on the live projector
+        const latestAtk = data.data.battleLog?.[0];
+        if (latestAtk && !seenBattleLogIdsRef.current.has(latestAtk.id)) {
+          seenBattleLogIdsRef.current.add(latestAtk.id);
+          if (data.data.status === 'active') {
+            if (latestAtk.type === 'paralyze') {
+              sounds.playElectricZap();
+            } else {
+              sounds.playTimeDrain();
+            }
+            setLiveAttackFlash({ text: latestAtk.text, type: latestAtk.type });
+            setTimeout(() => setLiveAttackFlash(null), 2600);
+          }
+        }
+
         setSession(data.data);
       }
     } catch (err) {
@@ -564,6 +599,21 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
               </div>
             </div>
 
+            {/* Live PvP Clash Flash Banner on Projector */}
+            {liveAttackFlash && (
+              <div
+                className={`animate-clash-pop rounded-2xl p-4 border-2 text-center shadow-2xl ${
+                  liveAttackFlash.type === 'paralyze'
+                    ? 'bg-gradient-to-r from-amber-500/30 via-yellow-400/25 to-amber-500/30 border-amber-300 text-amber-200 animate-electric'
+                    : 'bg-gradient-to-r from-red-600/35 via-orange-500/30 to-red-600/35 border-orange-400 text-orange-100'
+                }`}
+              >
+                <p className="text-base sm:text-lg font-black font-pokemon uppercase tracking-wide drop-shadow">
+                  {liveAttackFlash.text}
+                </p>
+              </div>
+            )}
+
             {/* Live PvP Battle Log Ticker */}
             {session.battleLog && session.battleLog.length > 0 && (
               <div className="bg-gradient-to-r from-red-950/70 via-slate-900/90 to-amber-950/60 border-2 border-amber-400/40 rounded-2xl p-3 shadow-lg">
@@ -629,12 +679,23 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
                         )}
 
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-black text-white text-sm font-pokemon">{player.nickname}</span>
                             {player.streak >= 2 && (
                               <span className="flex items-center gap-0.5 text-[11px] font-black text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20 font-pokemon">
                                 <Flame className="w-3 h-3 fill-amber-400" />
                                 {player.streak}
+                              </span>
+                            )}
+                            {player.activeEffect && player.activeEffect.expiresAt > Date.now() && (
+                              <span
+                                className={`text-[10px] font-black px-2 py-0.5 rounded-full border animate-pulse font-pokemon ${
+                                  player.activeEffect.type === 'paralyze'
+                                    ? 'bg-amber-400/20 text-amber-300 border-amber-400/50'
+                                    : 'bg-red-500/20 text-red-300 border-red-400/50'
+                                }`}
+                              >
+                                {player.activeEffect.type === 'paralyze' ? '⚡ Paralizado' : '🔥 -5s'}
                               </span>
                             )}
                           </div>

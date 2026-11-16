@@ -143,3 +143,65 @@
 .animate-aura {
   animation: aura-glow 2.2s ease-in-out infinite;
 }
+
+@keyframes clash-pop {
+  0% { opacity: 0; transform: scale(0.55) translateY(16px); }
+  55% { opacity: 1; transform: scale(1.06) translateY(-4px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.animate-clash-pop {
+  animation: clash-pop 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes attack-lunge-right {
+  0% { transform: translateX(0) scale(1); }
+  35% { transform: translateX(-14px) scale(0.95); }
+  70% { transform: translateX(28px) scale(1.18) rotate(6deg); }
+  100% { transform: translateX(0) scale(1); }
+}
+
+.animate-lunge-right {
+  animation: attack-lunge-right 0.65s ease-in-out infinite;
+}
+
+@keyframes target-hit {
+  0%, 100% { transform: translateX(0) scale(1); filter: brightness(1); }
+  25% { transform: translateX(10px) scale(0.92) rotate(5deg); filter: brightness(1.8); }
+  50% { transform: translateX(-10px) scale(1.05) rotate(-5deg); filter: brightness(0.7); }
+  75% { transform: translateX(6px) scale(0.96); filter: brightness(1.6); }
+}
+
+.animate-target-hit {
+  animation: target-hit 0.48s ease-in-out infinite;
+}
+
+@keyframes projectile-beam {
+  0% { transform: translateX(-40px) scale(0.7); opacity: 0; }
+  30% { opacity: 1; }
+  70% { transform: translateX(40px) scale(1.25); opacity: 1; }
+  100% { transform: translateX(70px) scale(0.8); opacity: 0; }
+}
+
+.animate-projectile {
+  animation: projectile-beam 0.7s ease-out infinite;
+}
+
+@keyframes thunder-flash-bg {
+  0%, 100% { background-color: rgba(250, 204, 21, 0.08); }
+  15%, 45% { background-color: rgba(250, 204, 21, 0.32); }
+  30%, 60% { background-color: rgba(56, 189, 248, 0.18); }
+}
+
+.animate-thunder-bg {
+  animation: thunder-flash-bg 0.75s ease-in-out infinite;
+}
+
+@keyframes fire-flash-bg {
+  0%, 100% { background-color: rgba(239, 68, 68, 0.10); }
+  50% { background-color: rgba(249, 115, 22, 0.34); }
+}
+
+.animate-fire-bg {
+  animation: fire-flash-bg 0.6s ease-in-out infinite;
+}

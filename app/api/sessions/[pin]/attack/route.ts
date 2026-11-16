@@ -7,7 +7,7 @@ export async function POST(
 ) {
   try {
     const { pin } = await params;
-    const { playerId, attackType } = await req.json();
+    const { playerId, attackType, targetPlayerId } = await req.json();
 
     if (attackType !== 'paralyze' && attackType !== 'steal_time') {
       return NextResponse.json({ success: false, error: 'Tipo de ataque no válido' }, { status: 400 });
@@ -44,15 +44,22 @@ export async function POST(
       }, { status: 400 });
     }
 
-    // Prefer candidates without an active unexpired effect, sorted roughly by top score with randomness
-    const freshCandidates = candidates.filter(
-      (c) => !c.activeEffect || c.activeEffect.expiresAt < now
-    );
-    const pool = freshCandidates.length > 0 ? freshCandidates : candidates;
-    const sorted = [...pool].sort((a, b) => b.score - a.score);
-    // Pick among the top 3 rivals so leaders feel the heat!
-    const topSlice = sorted.slice(0, Math.min(3, sorted.length));
-    const target = topSlice[Math.floor(Math.random() * topSlice.length)];
+    // Prefer explicitly chosen active target, otherwise pick among top 3 rivals
+    const explicitTarget = targetPlayerId
+      ? candidates.find((c) => c.id === targetPlayerId)
+      : undefined;
+
+    let target = explicitTarget;
+    if (!target) {
+      const freshCandidates = candidates.filter(
+        (c) => !c.activeEffect || c.activeEffect.expiresAt < now
+      );
+      const pool = freshCandidates.length > 0 ? freshCandidates : candidates;
+      const sorted = [...pool].sort((a, b) => b.score - a.score);
+      // Pick among the top 3 rivals so leaders feel the heat!
+      const topSlice = sorted.slice(0, Math.min(3, sorted.length));
+      target = topSlice[Math.floor(Math.random() * topSlice.length)];
+    }
 
     attacker.attackCharges = Math.max(0, (attacker.attackCharges || 1) - 1);
 
@@ -81,7 +88,10 @@ export async function POST(
     return NextResponse.json({
       success: true,
       data: {
+        attackerNickname: attacker.nickname,
+        attackerAvatar: attacker.avatar,
         targetNickname: target.nickname,
+        targetAvatar: target.avatar,
         attackType,
         remainingCharges: attacker.attackCharges,
       },
