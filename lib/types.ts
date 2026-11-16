@@ -50,10 +50,21 @@ export interface BattleLogEntry {
   createdAt: number;
 }
 
+export type RegionTeam = 'Kanto' | 'Johto' | 'Hoenn' | 'Sinnoh';
+
+export type WeatherType = 'sunny' | 'storm' | 'shield' | 'rain';
+
+export interface ActiveWeather {
+  type: WeatherType;
+  activatedAt: number;
+  expiresAt: number;
+}
+
 export interface Player {
   id: string;
   nickname: string;
   avatar: string;
+  team?: RegionTeam;
   score: number;
   streak: number;
   highestStreak: number;
@@ -75,6 +86,7 @@ export interface SessionSettings {
   showExplanations?: boolean;
   powerUpsEnabled?: boolean;
   pvpAttacksEnabled?: boolean;
+  teamsEnabled?: boolean;
 }
 
 export interface Session {
@@ -89,4 +101,5 @@ export interface Session {
   players: Record<string, Player>;
   settings?: SessionSettings;
   battleLog?: BattleLogEntry[];
+  activeWeather?: ActiveWeather | null;
 }

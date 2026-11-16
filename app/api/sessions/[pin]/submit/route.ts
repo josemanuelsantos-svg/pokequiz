@@ -65,16 +65,29 @@ export async function POST(
       if (doubleExp) {
         scoreEarned *= 2;
       }
+      // Sunny weather grants x1.5 EXP!
+      if (
+        session.activeWeather &&
+        session.activeWeather.expiresAt > Date.now() &&
+        session.activeWeather.type === 'sunny'
+      ) {
+        scoreEarned = Math.round(scoreEarned * 1.5);
+      }
       player.streak = currentStreak;
       if (player.streak > player.highestStreak) {
         player.highestStreak = player.streak;
       }
 
-      // Grant an attack charge every 2 consecutive correct answers when PvP attacks are enabled
+      // Grant an attack charge every 2 consecutive correct answers (or every 1 during Storm weather!)
+      const isStormActive =
+        session.activeWeather &&
+        session.activeWeather.expiresAt > Date.now() &&
+        session.activeWeather.type === 'storm';
+
       if (
         session.settings?.pvpAttacksEnabled !== false &&
         currentStreak > 0 &&
-        currentStreak % 2 === 0
+        (isStormActive || currentStreak % 2 === 0)
       ) {
         player.attackCharges = Math.min(2, (player.attackCharges || 0) + 1);
       }

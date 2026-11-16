@@ -12,12 +12,13 @@ import {
   Trophy, Users, Play, StopCircle, ArrowLeft, Sparkles, 
   Flame, CheckCircle, BarChart3, Clock, Share2, Volume2, VolumeX, 
   Music, Swords, Award, Zap, X, ChevronRight, HelpCircle, Eye, Download,
-  Shuffle, AlertTriangle, ShieldCheck
+  Shuffle, AlertTriangle, ShieldCheck, Printer, CloudSun
 } from 'lucide-react';
-import { Session, Player, SessionSettings } from '@/lib/types';
+import { Session, Player, SessionSettings, WeatherType, RegionTeam } from '@/lib/types';
 import { sounds } from '@/lib/sound';
 import { PokeballIcon, GreatBallIcon, UltraBallIcon } from '@/components/Pokeball';
 import { getRewardForRank, TOP_6_REWARDS } from '@/lib/rewards';
+import { REGION_TEAMS, WEATHER_CONFIG } from '@/lib/teams';
 
 export default function HostGamePage({ params }: { params: Promise<{ pin: string }> }) {
   const router = useRouter();
@@ -40,7 +41,9 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
     showExplanations: true,
     powerUpsEnabled: true,
     pvpAttacksEnabled: true,
+    teamsEnabled: false,
   });
+  const [weatherLoading, setWeatherLoading] = useState(false);
 
   const toggleSound = () => {
     const next = !soundEnabled;
@@ -194,6 +197,92 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
     }
   };
 
+  const handleActivateWeather = async (weatherType?: WeatherType) => {
+    if (weatherLoading) return;
+    try {
+      setWeatherLoading(true);
+      sounds.playClick();
+      const res = await fetch(`/api/sessions/${pin}/weather`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ weatherType }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        sounds.playCorrect();
+        fetchSession();
+      }
+    } catch {
+      // ignore
+    } finally {
+      setWeatherLoading(false);
+    }
+  };
+
+  const printTop3Diplomas = () => {
+    if (!session || typeof window === 'undefined') return;
+    const top3 = playersList.slice(0, 3);
+    if (top3.length === 0) return;
+
+    const escapeHtml = (str: string) =>
+      str.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c));
+
+    const cardsHtml = top3
+      .map((p, idx) => {
+        const rank = idx + 1;
+        const reward = getRewardForRank(rank);
+        const medal = rank === 1 ? '🥇 1.º PUESTO - CAMPEÓN' : rank === 2 ? '🥈 2.º PUESTO - SUBCAMPEÓN' : '🥉 3.º PUESTO - PODIO';
+        const border = rank === 1 ? '#f59e0b' : rank === 2 ? '#94a3b8' : '#b45309';
+        const avatarHtml = p.avatar.startsWith('http')
+          ? `<img src="${escapeHtml(p.avatar)}" alt="${escapeHtml(p.nickname)}" style="width:96px;height:96px;object-fit:contain;margin:8px auto;display:block;" />`
+          : `<div style="font-size:64px;margin:8px 0;">${escapeHtml(p.avatar)}</div>`;
+        return `
+          <div class="diploma" style="border:6px solid ${border};">
+            <div class="badge">${medal}</div>
+            <h2>LIGA POKÉQUIZ DEL AULA</h2>
+            <p class="subtitle">Se otorga el presente Diploma de Entrenador/a a:</p>
+            ${avatarHtml}
+            <h1>${escapeHtml(p.nickname)}</h1>
+            <p class="quiz">${escapeHtml(session.quizTitle)} • <strong>${p.score.toLocaleString()} EXP</strong></p>
+            <div class="rewards">🎁 ${escapeHtml(reward?.summary || '')}</div>
+            <div class="footer">Firma del Líder de Gimnasio _______________________</div>
+          </div>
+        `;
+      })
+      .join('');
+
+    const win = window.open('', '_blank', 'width=900,height=700');
+    if (!win) return;
+    win.document.write(`
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="utf-8" />
+        <title>Diplomas Top 3 - ${escapeHtml(session.quizTitle)}</title>
+        <style>
+          body { font-family: system-ui, -apple-system, sans-serif; background: #f8fafc; color: #0f172a; margin: 0; padding: 20px; }
+          .diploma { background: #fff; border-radius: 20px; padding: 28px 32px; margin-bottom: 24px; text-align: center; page-break-inside: avoid; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+          .badge { display: inline-block; background: #0f172a; color: #fbbf24; font-weight: 900; padding: 6px 16px; border-radius: 999px; font-size: 13px; letter-spacing: 1px; }
+          h2 { margin: 12px 0 4px; font-size: 16px; color: #475569; letter-spacing: 2px; }
+          .subtitle { margin: 4px 0 8px; font-size: 13px; color: #64748b; }
+          h1 { margin: 6px 0; font-size: 32px; color: #0f172a; text-transform: uppercase; }
+          .quiz { font-size: 14px; color: #334155; margin: 6px 0 12px; }
+          .rewards { background: #fef3c7; border: 2px dashed #f59e0b; border-radius: 12px; padding: 10px 14px; font-weight: 800; font-size: 14px; color: #92400e; display: inline-block; }
+          .footer { margin-top: 20px; font-size: 12px; color: #64748b; }
+          @media print { body { background: #fff; padding: 0; } .no-print { display: none; } }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="text-align:center;margin-bottom:16px;">
+          <button onclick="window.print()" style="padding:10px 20px;font-size:15px;font-weight:bold;background:#dc2626;color:#fff;border:none;border-radius:10px;cursor:pointer;">🖨️ Imprimir / Guardar como PDF</button>
+        </div>
+        ${cardsHtml}
+      </body>
+      </html>
+    `);
+    win.document.close();
+  };
+
   const downloadExcelReport = () => {
     if (!session) return;
 
@@ -207,9 +296,11 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
         p.answers.length > 0
           ? Number((p.answers.reduce((acc, a) => acc + (a.timeSpent || 0), 0) / p.answers.length).toFixed(1))
           : 0;
+      const reward = getRewardForRank(idx + 1);
       return {
         'Posición': idx + 1,
         'Nombre Alumno': p.nickname,
+        'Región': p.team || '-',
         'Puntuación EXP': p.score,
         'Aciertos': correct,
         'Fallos': wrong,
@@ -218,7 +309,11 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
         'Nota sobre 10': grade,
         'Mejor Racha': p.highestStreak,
         'Tiempo Medio (s)': avgTime,
-        'Premio Liga Escolar': getRewardForRank(idx + 1)?.summary || '-',
+        'EXP Aula': reward ? reward.expPoints : 0,
+        'Pts Región': reward ? reward.regionPoints : 0,
+        'Pokémon Ganado': reward?.pokemon ? 'Sí (+1)' : 'No',
+        'Tarjeta Beneficio': reward?.benefitCard || '-',
+        'Premio Liga Escolar': reward?.summary || '-',
       };
     });
 
@@ -437,7 +532,7 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
             </div>
 
             {/* Lobby Game Rules Toggles */}
-            <div className="w-full max-w-4xl mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+            <div className="w-full max-w-4xl mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
               <button
                 type="button"
                 onClick={() => setLobbySettings(s => ({ ...s, shuffleQuestions: !s.shuffleQuestions }))}
@@ -505,7 +600,7 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
               <button
                 type="button"
                 onClick={() => setLobbySettings(s => ({ ...s, pvpAttacksEnabled: !s.pvpAttacksEnabled }))}
-                className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center gap-2.5 col-span-2 sm:col-span-1 ${
+                className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
                   lobbySettings.pvpAttacksEnabled
                     ? 'bg-red-500/20 border-red-400 text-red-200'
                     : 'bg-slate-900/70 border-slate-800 text-slate-400 hover:border-slate-700'
@@ -515,6 +610,22 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
                 <div>
                   <span className="text-xs font-black block font-pokemon">Ataques PvP</span>
                   <span className="text-[10px] opacity-80">{lobbySettings.pvpAttacksEnabled ? 'Paralizar / -5s' : 'Desactivados'}</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setLobbySettings(s => ({ ...s, teamsEnabled: !s.teamsEnabled }))}
+                className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                  lobbySettings.teamsEnabled
+                    ? 'bg-indigo-500/20 border-indigo-400 text-indigo-200'
+                    : 'bg-slate-900/70 border-slate-800 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <Users className="w-4 h-4 shrink-0 text-indigo-400" />
+                <div>
+                  <span className="text-xs font-black block font-pokemon">Equipos Región</span>
+                  <span className="text-[10px] opacity-80">{lobbySettings.teamsEnabled ? 'Kanto/Johto/Hoenn/Sinnoh' : 'Individual'}</span>
                 </div>
               </button>
             </div>
@@ -599,6 +710,58 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
               </div>
             </div>
 
+            {/* Stadium Weather Control Bar (Game Master) */}
+            <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 flex flex-col md:flex-row items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <CloudSun className="w-5 h-5 text-amber-400 shrink-0" />
+                <div>
+                  <span className="text-xs font-black text-white uppercase font-pokemon block">
+                    Clima de Estadio Pokémon (25s)
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    {session.activeWeather && session.activeWeather.expiresAt > Date.now()
+                      ? `${WEATHER_CONFIG[session.activeWeather.type].label}: ${WEATHER_CONFIG[session.activeWeather.type].effectDesc}`
+                      : 'Activa un evento climático sorpresa para toda la clase'}
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {(['sunny', 'storm', 'shield', 'rain'] as WeatherType[]).map((wType) => (
+                  <button
+                    key={wType}
+                    type="button"
+                    disabled={weatherLoading}
+                    onClick={() => handleActivateWeather(wType)}
+                    className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-white transition-all active:scale-95 cursor-pointer font-pokemon"
+                  >
+                    {WEATHER_CONFIG[wType].label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Live Region Teams Scoreboard (if Teams Mode enabled) */}
+            {session.settings?.teamsEnabled && playersList.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {(['Kanto', 'Johto', 'Hoenn', 'Sinnoh'] as RegionTeam[]).map((tName) => {
+                  const tInfo = REGION_TEAMS[tName];
+                  const members = playersList.filter((p) => p.team === tName);
+                  const teamScore = members.reduce((acc, p) => acc + p.score, 0);
+                  return (
+                    <div key={tName} className={`rounded-2xl border p-3 bg-slate-900/90 ${tInfo.badgeClass}`}>
+                      <div className="flex items-center justify-between text-xs font-black font-pokemon">
+                        <span>{tInfo.emoji} {tInfo.name}</span>
+                        <span>{members.length} jug.</span>
+                      </div>
+                      <p className="text-xl font-black text-white font-pokemon mt-1">
+                        {teamScore.toLocaleString()} <span className="text-[10px] font-pixel opacity-75">EXP</span>
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Live PvP Clash Flash Banner on Projector */}
             {liveAttackFlash && (
               <div
@@ -681,6 +844,11 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-black text-white text-sm font-pokemon">{player.nickname}</span>
+                            {player.team && REGION_TEAMS[player.team] && (
+                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border font-pokemon ${REGION_TEAMS[player.team].badgeClass}`}>
+                                {REGION_TEAMS[player.team].emoji} {player.team}
+                              </span>
+                            )}
                             {player.streak >= 2 && (
                               <span className="flex items-center gap-0.5 text-[11px] font-black text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20 font-pokemon">
                                 <Flame className="w-3 h-3 fill-amber-400" />
@@ -760,6 +928,14 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
               >
                 <BarChart3 className="w-4 h-4" />
                 <span>Análisis de Preguntas</span>
+              </button>
+              <button
+                type="button"
+                onClick={printTop3Diplomas}
+                className="px-4 py-2 rounded-xl text-xs font-black text-emerald-300 hover:bg-emerald-500/15 transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Diplomas Top 3</span>
               </button>
             </div>
 

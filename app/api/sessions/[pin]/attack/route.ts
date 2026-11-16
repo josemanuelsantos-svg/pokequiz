@@ -22,6 +22,17 @@ export async function POST(
       return NextResponse.json({ success: false, error: 'Los ataques PvP están desactivados' }, { status: 403 });
     }
 
+    if (
+      session.activeWeather &&
+      session.activeWeather.expiresAt > Date.now() &&
+      session.activeWeather.type === 'shield'
+    ) {
+      return NextResponse.json({
+        success: false,
+        error: '🛡️ ¡Campo Protector activo! Nadie puede recibir ataques ahora mismo.',
+      }, { status: 400 });
+    }
+
     const attacker = session.players[playerId];
     if (!attacker) {
       return NextResponse.json({ success: false, error: 'Jugador no encontrado' }, { status: 404 });

@@ -15,6 +15,7 @@ import { POKEMON_AVATARS, PokemonAvatar } from '@/lib/pokemon-avatars';
 import { PokeballIcon } from '@/components/Pokeball';
 import { getRewardForRank } from '@/lib/rewards';
 import { AttackOverlay, AttackAnimationData } from '@/components/AttackOverlay';
+import { REGION_TEAMS, WEATHER_CONFIG } from '@/lib/teams';
 
 // Deterministic hash-based shuffle so each student gets a stable, unique order
 function seededShuffle<T>(arr: T[], seedStr: string): T[] {
@@ -102,6 +103,21 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
   const [attackAnimation, setAttackAnimation] = useState<AttackAnimationData | null>(null);
   const [selectedTargetId, setSelectedTargetId] = useState<string>('');
   const [paralysisTaps, setParalysisTaps] = useState<number>(0);
+  const lastWeatherActivatedAtRef = useRef<number>(0);
+
+  const speakQuestion = (text: string) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      const titleLower = (session?.quizTitle || '').toLowerCase();
+      utter.lang = titleLower.includes('ingl') || titleLower.includes('english') ? 'en-GB' : 'es-ES';
+      utter.rate = 0.95;
+      window.speechSynthesis.speak(utter);
+    } catch {
+      // ignore if speech synthesis is blocked
+    }
+  };
 
   const triggerShake = () => {
     setIsShaking(true);
@@ -228,6 +244,20 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
             setTimeout(() => {
               setIncomingAlert(null);
             }, 3500);
+          }
+
+          // Detect newly activated Stadium Weather (e.g. Rain gives +5s)
+          const weather = data.data.activeWeather;
+          if (
+            weather &&
+            weather.expiresAt > Date.now() &&
+            weather.activatedAt > lastWeatherActivatedAtRef.current
+          ) {
+            lastWeatherActivatedAtRef.current = weather.activatedAt;
+            if (weather.type === 'rain') {
+              sounds.playCorrect();
+              setTimeLeft((prev) => prev + 5);
+            }
           }
         }
       } else {
@@ -733,6 +763,11 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
                           JEFE
                         </span>
                       )}
+                      {myPlayer?.team && REGION_TEAMS[myPlayer.team] && (
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border mt-1 font-pokemon ${REGION_TEAMS[myPlayer.team].badgeClass}`}>
+                          {REGION_TEAMS[myPlayer.team].emoji} {myPlayer.team}
+                        </span>
+                      )}
                     </div>
 
                     {/* Opponent Pokémon & Status Box */}
@@ -785,14 +820,30 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
 
           {currentQuestion && !feedback && (
             <div className="flex-1 flex flex-col justify-between py-1">
+              {session.activeWeather && session.activeWeather.expiresAt > Date.now() && (
+                <div className={`rounded-2xl px-3 py-1.5 mb-2 border text-center text-[11px] font-black font-pokemon animate-pulse ${WEATHER_CONFIG[session.activeWeather.type].bannerClass}`}>
+                  {WEATHER_CONFIG[session.activeWeather.type].label} — {WEATHER_CONFIG[session.activeWeather.type].effectDesc}
+                </div>
+              )}
+
               <div className="pokemon-dialog-box rounded-3xl p-4 sm:p-5 text-center relative overflow-hidden">
                 <div className="absolute top-2 right-3 opacity-10">
                   <PokeballIcon className="w-24 h-24" />
                 </div>
 
-                <h2 className="text-lg sm:text-2xl font-bold text-white leading-snug font-pokemon relative z-10">
-                  {currentQuestion.text}
-                </h2>
+                <div className="flex items-start justify-center gap-2 relative z-10">
+                  <h2 className="text-lg sm:text-2xl font-bold text-white leading-snug font-pokemon flex-1">
+                    {currentQuestion.text}
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => speakQuestion(currentQuestion.text)}
+                    title="Leer pregunta en voz alta"
+                    className="shrink-0 w-9 h-9 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-amber-400/40 text-amber-300 flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
+                  >
+                    <Volume2 className="w-4 h-4" />
+                  </button>
+                </div>
 
                 {currentQuestion.image && (
                   <div className="mt-3 rounded-2xl overflow-hidden max-h-52 sm:max-h-64 flex items-center justify-center bg-slate-950/70 border border-amber-400/30 shadow-inner relative z-10 p-1">

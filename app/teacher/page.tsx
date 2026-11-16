@@ -182,6 +182,18 @@ export default function TeacherDashboard() {
     notify('Archivo de desafío descargado');
   };
 
+  const handleExportAll = () => {
+    if (quizzes.length === 0) return;
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(quizzes, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute('download', `pokequiz_backup_${new Date().toISOString().slice(0, 10)}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+    notify(`Copia de seguridad descargada (${quizzes.length} pruebas)`);
+  };
+
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -189,21 +201,30 @@ export default function TeacherDashboard() {
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
-        const json = JSON.parse(event.target?.result as string);
-        if (!json.title || !json.questions) {
-          alert('El archivo no parece ser un cuestionario válido');
-          return;
+        const parsed = JSON.parse(event.target?.result as string);
+        const items: Quiz[] = Array.isArray(parsed) ? parsed : [parsed];
+        let importedCount = 0;
+
+        for (const item of items) {
+          if (!item.title || !item.questions) continue;
+          const copy = {
+            ...item,
+            id: 'quiz_' + Math.random().toString(36).substring(2, 9),
+            title: Array.isArray(parsed) ? item.title : `${item.title} (Importado)`,
+          };
+          const res = await fetch('/api/quizzes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(copy),
+          });
+          if (res.ok) importedCount++;
         }
-        json.id = 'quiz_' + Math.random().toString(36).substring(2, 9);
-        json.title = json.title + ' (Importado)';
-        const res = await fetch('/api/quizzes', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(json)
-        });
-        if (res.ok) {
+
+        if (importedCount > 0) {
           fetchQuizzes();
-          notify('Desafío importado');
+          notify(importedCount === 1 ? 'Desafío importado' : `${importedCount} desafíos importados`);
+        } else {
+          alert('El archivo no parece contener cuestionarios válidos');
         }
       } catch {
         alert('Error al leer el archivo JSON');
@@ -244,9 +265,18 @@ export default function TeacherDashboard() {
               className="hidden" 
             />
             <button
+              onClick={handleExportAll}
+              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 transition-all flex items-center gap-1.5 cursor-pointer"
+              title="Descargar copia de seguridad de todas tus pruebas en JSON"
+            >
+              <Download className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden md:inline">Backup</span>
+            </button>
+
+            <button
               onClick={() => fileInputRef.current?.click()}
               className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 transition-all flex items-center gap-1.5 cursor-pointer"
-              title="Importar cuestionario desde archivo JSON"
+              title="Importar cuestionario o backup desde archivo JSON"
             >
               <Upload className="w-3.5 h-3.5 text-amber-400" />
               <span className="hidden sm:inline">Importar JSON</span>
