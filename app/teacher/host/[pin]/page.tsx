@@ -848,9 +848,49 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
                     </div>
                   </div>
                   {activeQ && (
-                    <p className="text-sm sm:text-base font-bold text-white bg-slate-950/70 rounded-xl p-3 border border-slate-800 font-pokemon">
-                      {activeQ.text}
-                    </p>
+                    <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800 space-y-3">
+                      <div className="flex flex-col sm:flex-row items-center gap-4">
+                        <p className="text-base sm:text-xl font-black text-white font-pokemon flex-1 leading-snug">
+                          {activeQ.text}
+                        </p>
+                        {activeQ.image && (
+                          <img
+                            src={activeQ.image}
+                            alt="Pregunta proyectada"
+                            className="max-h-28 w-auto object-contain rounded-xl border border-amber-400/30 bg-slate-900/70 p-1 shrink-0"
+                          />
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {activeQ.options.map((opt, oIdx) => {
+                          const letter = ['A', 'B', 'C', 'D'][oIdx] || String(oIdx + 1);
+                          const revealCorrect = session.questionClosed || (playersList.length > 0 && answeredCurrentCount >= playersList.length);
+                          return (
+                            <div
+                              key={opt.id}
+                              className={`px-3 py-2 rounded-xl border text-xs sm:text-sm font-bold font-pokemon flex items-center gap-2 transition-all ${
+                                revealCorrect && opt.isCorrect
+                                  ? 'bg-emerald-500/25 border-emerald-400 text-emerald-200 shadow-lg shadow-emerald-500/20'
+                                  : revealCorrect
+                                  ? 'bg-slate-900/60 border-slate-800 text-slate-500'
+                                  : 'bg-slate-900 border-slate-700 text-slate-200'
+                              }`}
+                            >
+                              <span className="w-6 h-6 rounded-lg bg-slate-800 flex items-center justify-center text-amber-400 font-black shrink-0">
+                                {letter}
+                              </span>
+                              <span className="flex-1">{opt.text}</span>
+                              {revealCorrect && opt.isCorrect && <span>✅</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {(session.questionClosed || (playersList.length > 0 && answeredCurrentCount >= playersList.length)) && activeQ.explanation && (
+                        <p className="text-xs text-amber-300/95 bg-amber-400/10 border border-amber-400/30 rounded-xl px-3 py-2 font-medium">
+                          💡 {activeQ.explanation}
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
               );
