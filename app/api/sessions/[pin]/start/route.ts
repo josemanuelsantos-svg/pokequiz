@@ -38,6 +38,9 @@ export async function POST(
 
     session.status = 'active';
     session.startedAt = Date.now();
+    session.teacherCurrentIndex = 0;
+    session.questionClosed = false;
+    session.bonusTimePulse = null;
     SessionStore.update(session);
 
     return NextResponse.json({ success: true, data: session });

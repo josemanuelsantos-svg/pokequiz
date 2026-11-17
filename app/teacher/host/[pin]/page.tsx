@@ -42,8 +42,11 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
     powerUpsEnabled: true,
     pvpAttacksEnabled: true,
     teamsEnabled: false,
+    paceMode: 'free',
+    questionDuration: 30,
   });
   const [weatherLoading, setWeatherLoading] = useState(false);
+  const [controlLoading, setControlLoading] = useState(false);
 
   const toggleSound = () => {
     const next = !soundEnabled;
@@ -216,6 +219,28 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
       // ignore
     } finally {
       setWeatherLoading(false);
+    }
+  };
+
+  const handleControlGame = async (action: 'add_time' | 'close_question' | 'next_question') => {
+    if (controlLoading) return;
+    try {
+      setControlLoading(true);
+      sounds.playClick();
+      const res = await fetch(`/api/sessions/${pin}/control`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, seconds: 15 }),
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        setSession(data.data);
+        if (action === 'add_time') sounds.playCorrect();
+      }
+    } catch {
+      // ignore
+    } finally {
+      setControlLoading(false);
     }
   };
 
@@ -630,6 +655,62 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
               </button>
             </div>
 
+            {/* Pace Mode & Question Timer Controls */}
+            <div className="w-full max-w-4xl mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-3 flex items-center justify-between gap-2">
+                <div>
+                  <span className="text-xs font-black text-white block font-pokemon">Ritmo de la Partida</span>
+                  <span className="text-[10px] text-slate-400">
+                    {lobbySettings.paceMode === 'teacher'
+                      ? 'Todos avanzan cuando tú pulses Siguiente'
+                      : 'Cada alumno avanza a su propio ritmo'}
+                  </span>
+                </div>
+                <div className="flex rounded-xl bg-slate-950 p-1 border border-slate-800 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setLobbySettings(s => ({ ...s, paceMode: 'free' }))}
+                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-black font-pokemon cursor-pointer transition-all ${
+                      lobbySettings.paceMode !== 'teacher'
+                        ? 'bg-amber-400 text-slate-950'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    ⚡ Libre
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLobbySettings(s => ({ ...s, paceMode: 'teacher' }))}
+                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-black font-pokemon cursor-pointer transition-all ${
+                      lobbySettings.paceMode === 'teacher'
+                        ? 'bg-emerald-400 text-slate-950'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    👨‍🏫 Al ritmo del profe
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-3 flex items-center justify-between gap-2">
+                <div>
+                  <span className="text-xs font-black text-white block font-pokemon">Tiempo por Pregunta</span>
+                  <span className="text-[10px] text-slate-400">Recomendado 30s o 45s para 4.º Primaria</span>
+                </div>
+                <select
+                  value={lobbySettings.questionDuration ?? 30}
+                  onChange={(e) => setLobbySettings(s => ({ ...s, questionDuration: Number(e.target.value) }))}
+                  className="bg-slate-950 border border-amber-400/50 text-amber-300 text-xs font-black rounded-xl px-2.5 py-1.5 font-pokemon focus:outline-none cursor-pointer"
+                >
+                  <option value={20}>20s (Rápido)</option>
+                  <option value={30}>30s (4º Primaria)</option>
+                  <option value={45}>45s (Tranquilo)</option>
+                  <option value={60}>60s (Amplio)</option>
+                  <option value={-1}>∞ Sin límite</option>
+                </select>
+              </div>
+            </div>
+
             {/* Players Joined Counter & Avatars list */}
             <div className="w-full max-w-4xl mt-6">
               <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
@@ -702,13 +783,78 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-slate-400 font-pokemon">PIN DE COMBATE:</span>
+              <div className="flex items-center gap-3 flex-wrap">
+                <button
+                  type="button"
+                  disabled={controlLoading}
+                  onClick={() => handleControlGame('add_time')}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs font-pokemon flex items-center gap-1.5 shadow cursor-pointer active:scale-95 transition-transform"
+                  title="Añadir 15 segundos extra al reloj actual de toda la clase"
+                >
+                  <Clock className="w-4 h-4" />
+                  <span>+15s a toda la clase</span>
+                </button>
+                <span className="text-xs text-slate-400 font-pokemon">PIN:</span>
                 <span className="font-mono font-black text-amber-400 text-lg bg-slate-950 px-3 py-1 rounded-xl border border-amber-400/40 font-pokemon">
                   {session.pin}
                 </span>
               </div>
             </div>
+
+            {/* Teacher-Paced Live Control Card */}
+            {session.settings?.paceMode === 'teacher' && (() => {
+              const tIdx = session.teacherCurrentIndex ?? 0;
+              const activeQ = session.questions[tIdx];
+              const answeredCurrentCount = activeQ
+                ? playersList.filter((p) => p.answers.some((a) => a.questionId === activeQ.id)).length
+                : 0;
+              const isLastQ = tIdx + 1 >= session.questions.length;
+
+              return (
+                <div className="bg-gradient-to-r from-emerald-950/70 via-slate-900 to-sky-950/70 border-2 border-emerald-400/60 rounded-2xl p-4 shadow-xl space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-1 rounded-lg bg-emerald-400 text-slate-950 font-black text-xs font-pokemon">
+                        PREGUNTA {tIdx + 1} / {session.questions.length}
+                      </span>
+                      <span className="text-xs font-bold text-emerald-200 font-pokemon">
+                        Han respondido: {answeredCurrentCount} / {playersList.length}
+                      </span>
+                      {session.questionClosed && (
+                        <span className="px-2 py-0.5 rounded bg-red-500/20 border border-red-400 text-red-300 text-[10px] font-pixel">
+                          CERRADA
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {!session.questionClosed && (
+                        <button
+                          type="button"
+                          disabled={controlLoading}
+                          onClick={() => handleControlGame('close_question')}
+                          className="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs font-pokemon cursor-pointer active:scale-95"
+                        >
+                          🔒 Cerrar Pregunta
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        disabled={controlLoading}
+                        onClick={() => handleControlGame('next_question')}
+                        className="px-4 py-1.5 rounded-xl bg-sky-400 hover:bg-sky-300 text-slate-950 font-black text-xs font-pokemon cursor-pointer active:scale-95 flex items-center gap-1"
+                      >
+                        <span>{isLastQ ? '🏆 Finalizar y Ver Podio' : '➡️ Siguiente Pregunta'}</span>
+                      </button>
+                    </div>
+                  </div>
+                  {activeQ && (
+                    <p className="text-sm sm:text-base font-bold text-white bg-slate-950/70 rounded-xl p-3 border border-slate-800 font-pokemon">
+                      {activeQ.text}
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Stadium Weather Control Bar (Game Master) */}
             <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 flex flex-col md:flex-row items-center justify-between gap-3">

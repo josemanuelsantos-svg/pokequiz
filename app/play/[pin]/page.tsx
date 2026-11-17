@@ -104,6 +104,8 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
   const [selectedTargetId, setSelectedTargetId] = useState<string>('');
   const [paralysisTaps, setParalysisTaps] = useState<number>(0);
   const lastWeatherActivatedAtRef = useRef<number>(0);
+  const lastBonusPulseAtRef = useRef<number>(0);
+  const timerArmedRef = useRef<boolean>(false);
 
   const speakQuestion = (text: string) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
@@ -256,7 +258,32 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
             lastWeatherActivatedAtRef.current = weather.activatedAt;
             if (weather.type === 'rain') {
               sounds.playCorrect();
-              setTimeLeft((prev) => prev + 5);
+              setTimeLeft((prev) => (prev >= 0 ? prev + 5 : prev));
+            }
+          }
+
+          // Detect host "+15s extra" bonus time pulse
+          const pulse = data.data.bonusTimePulse;
+          if (pulse && pulse.createdAt > lastBonusPulseAtRef.current) {
+            lastBonusPulseAtRef.current = pulse.createdAt;
+            sounds.playCorrect();
+            setTimeLeft((prev) => (prev >= 0 ? prev + pulse.seconds : prev));
+          }
+
+          // Sync with Teacher-Paced mode
+          if (data.data.settings?.paceMode === 'teacher' && data.data.status === 'active') {
+            const teacherIdx = data.data.teacherCurrentIndex ?? 0;
+            if (teacherIdx > currentIdx) {
+              timerArmedRef.current = false;
+              setFeedback(null);
+              setSelectedOptionId(null);
+              setHiddenOptionIds([]);
+              setIsDoubleExpActive(false);
+              setParalyzedSec(0);
+              setCurrentIdx(teacherIdx);
+            } else if (data.data.questionClosed && !feedback && !answering) {
+              timerArmedRef.current = false;
+              submitAnswer('');
             }
           }
         }
@@ -350,8 +377,17 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
 
   const currentQuestion = orderedQuestions[currentIdx];
 
-  // Setup question timer
+  const getQuestionDuration = (q?: Question): number => {
+    if (!q) return 30;
+    const override = session?.settings?.questionDuration;
+    if (override === -1) return -1;
+    if (override && override > 0) return override;
+    return q.timeLimit || 30;
+  };
+
+  // Setup question timer cleanly without race conditions
   useEffect(() => {
+    timerArmedRef.current = false;
     if (!session || session.status !== 'active' || !playerId || feedback) {
       if (timerRef.current) clearInterval(timerRef.current);
       return;
@@ -359,21 +395,37 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
 
     if (!currentQuestion) return;
 
-    setTimeLeft(currentQuestion.timeLimit || 20);
+    const duration = getQuestionDuration(currentQuestion);
+    setTimeLeft(duration);
     setQuestionStartTime(Date.now());
 
+    if (duration === -1) {
+      // No time limit mode
+      return;
+    }
+
+    timerArmedRef.current = true;
     timerRef.current = setInterval(() => {
-      setTimeLeft((prev) => Math.max(0, prev - 1));
+      setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
 
     return () => {
+      timerArmedRef.current = false;
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [session?.status, currentIdx, playerId, feedback, currentQuestion?.id]);
+  }, [session?.status, currentIdx, playerId, feedback, currentQuestion?.id, session?.settings?.questionDuration]);
 
-  // Trigger timeout submission cleanly when timeLeft hits 0
+  // Trigger timeout submission cleanly ONLY when timer was armed for this question
   useEffect(() => {
-    if (timeLeft === 0 && session?.status === 'active' && playerId && !feedback && !answering) {
+    if (
+      timerArmedRef.current &&
+      timeLeft === 0 &&
+      session?.status === 'active' &&
+      playerId &&
+      !feedback &&
+      !answering
+    ) {
+      timerArmedRef.current = false;
       if (timerRef.current) clearInterval(timerRef.current);
       submitAnswer('');
     }
@@ -459,11 +511,17 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
   const handleNextQuestion = () => {
     if (!session) return;
     sounds.playClick();
-    setFeedback(null);
+    timerArmedRef.current = false;
+    const nextQ = orderedQuestions[currentIdx + 1];
+    const nextDur = getQuestionDuration(nextQ);
+    setTimeLeft(nextDur);
+    setQuestionStartTime(Date.now());
     setSelectedOptionId(null);
     setHiddenOptionIds([]);
     setIsDoubleExpActive(false);
+    setParalyzedSec(0);
     setCurrentIdx(prev => prev + 1);
+    setFeedback(null);
   };
 
   const myPlayer: Player | undefined = playerId && session?.players ? session.players[playerId] : undefined;
@@ -708,8 +766,9 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
             </div>
 
             {currentQuestion && !feedback && (() => {
-              const maxT = currentQuestion.timeLimit || 20;
-              const ratio = timeLeft / maxT;
+              const effDur = getQuestionDuration(currentQuestion);
+              const maxT = effDur > 0 ? effDur : 30;
+              const ratio = timeLeft < 0 ? 1 : Math.min(1, timeLeft / maxT);
               const trainerLevel = 1 + Math.floor((myPlayer?.score || 0) / 1000);
               const isBoss = currentIdx === orderedQuestions.length - 1;
               const opponent = isBoss
@@ -794,21 +853,21 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
                     </div>
                   </div>
 
-                  {/* Timer Bar */}
-                  <div className="bg-slate-950 p-1.5 rounded-xl border border-slate-800 mb-3">
-                    <div className="flex items-center justify-between text-[10px] font-pixel text-slate-400 px-1 mb-1">
+                  {/* Timer Bar (Compact) */}
+                  <div className="bg-slate-950 px-2 py-1 rounded-xl border border-slate-800 mb-1.5">
+                    <div className="flex items-center justify-between text-[10px] font-pixel text-slate-400 px-0.5 mb-0.5">
                       <span>EXP / TIEMPO</span>
-                      <span className={ratio <= 0.25 ? 'text-red-400 font-bold animate-pulse' : 'text-slate-300'}>
-                        {timeLeft}s
+                      <span className={timeLeft >= 0 && ratio <= 0.25 ? 'text-red-400 font-bold animate-pulse' : 'text-slate-300'}>
+                        {timeLeft < 0 ? '∞ Sin límite' : `${timeLeft}s`}
                       </span>
                     </div>
-                    <div className="w-full h-3 rounded-lg bg-slate-900 overflow-hidden p-0.5 border border-slate-800">
+                    <div className="w-full h-2.5 rounded-lg bg-slate-900 overflow-hidden p-0.5 border border-slate-800">
                       <div
                         className={`h-full rounded-md transition-all duration-1000 ${
-                          ratio <= 0.25 ? 'hp-bar-red' : ratio <= 0.5 ? 'hp-bar-yellow' : 'hp-bar-green'
+                          timeLeft < 0 ? 'hp-bar-green' : ratio <= 0.25 ? 'hp-bar-red' : ratio <= 0.5 ? 'hp-bar-yellow' : 'hp-bar-green'
                         }`}
                         style={{
-                          width: `${Math.max(0, ratio * 100)}%`
+                          width: timeLeft < 0 ? '100%' : `${Math.max(0, ratio * 100)}%`
                         }}
                       />
                     </div>
@@ -819,41 +878,43 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
           </div>
 
           {currentQuestion && !feedback && (
-            <div className="flex-1 flex flex-col justify-between py-1">
+            <div className="flex-1 flex flex-col justify-between py-0.5 gap-1.5">
               {session.activeWeather && session.activeWeather.expiresAt > Date.now() && (
-                <div className={`rounded-2xl px-3 py-1.5 mb-2 border text-center text-[11px] font-black font-pokemon animate-pulse ${WEATHER_CONFIG[session.activeWeather.type].bannerClass}`}>
+                <div className={`rounded-xl px-3 py-1 border text-center text-[11px] font-black font-pokemon animate-pulse ${WEATHER_CONFIG[session.activeWeather.type].bannerClass}`}>
                   {WEATHER_CONFIG[session.activeWeather.type].label} — {WEATHER_CONFIG[session.activeWeather.type].effectDesc}
                 </div>
               )}
 
-              <div className="pokemon-dialog-box rounded-3xl p-4 sm:p-5 text-center relative overflow-hidden">
-                <div className="absolute top-2 right-3 opacity-10">
-                  <PokeballIcon className="w-24 h-24" />
+              <div className="pokemon-dialog-box rounded-2xl p-3 sm:p-4 text-center relative overflow-hidden">
+                <div className="absolute top-1 right-2 opacity-10">
+                  <PokeballIcon className="w-16 h-16" />
                 </div>
 
-                <div className="flex items-start justify-center gap-2 relative z-10">
-                  <h2 className="text-lg sm:text-2xl font-bold text-white leading-snug font-pokemon flex-1">
-                    {currentQuestion.text}
-                  </h2>
-                  <button
-                    type="button"
-                    onClick={() => speakQuestion(currentQuestion.text)}
-                    title="Leer pregunta en voz alta"
-                    className="shrink-0 w-9 h-9 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-amber-400/40 text-amber-300 flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
-                  >
-                    <Volume2 className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {currentQuestion.image && (
-                  <div className="mt-3 rounded-2xl overflow-hidden max-h-52 sm:max-h-64 flex items-center justify-center bg-slate-950/70 border border-amber-400/30 shadow-inner relative z-10 p-1">
-                    <img
-                      src={currentQuestion.image}
-                      alt="Ilustración de la pregunta"
-                      className="max-h-52 sm:max-h-60 object-contain rounded-xl"
-                    />
+                <div className={`flex ${currentQuestion.image ? 'flex-col sm:flex-row items-center gap-3 text-center sm:text-left' : 'items-start justify-center gap-2 text-center'} relative z-10`}>
+                  <div className="flex items-start gap-2 flex-1 min-w-0">
+                    <h2 className="text-base sm:text-xl font-bold text-white leading-snug font-pokemon flex-1">
+                      {currentQuestion.text}
+                    </h2>
+                    <button
+                      type="button"
+                      onClick={() => speakQuestion(currentQuestion.text)}
+                      title="Leer pregunta en voz alta"
+                      className="shrink-0 w-8 h-8 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-amber-400/40 text-amber-300 flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
+                    >
+                      <Volume2 className="w-4 h-4" />
+                    </button>
                   </div>
-                )}
+
+                  {currentQuestion.image && (
+                    <div className="shrink-0 rounded-xl overflow-hidden max-h-24 sm:max-h-28 flex items-center justify-center bg-slate-950/70 border border-amber-400/30 shadow-inner p-1">
+                      <img
+                        src={currentQuestion.image}
+                        alt="Ilustración de la pregunta"
+                        className="max-h-22 sm:max-h-26 w-auto object-contain rounded-lg"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Power-ups Bar (Mochila de Entrenador) */}
@@ -1018,7 +1079,7 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
                   </div>
                 )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-1">
                 {currentQuestion.options.map((opt, optIdx) => {
                   const style = attackStyles[optIdx % attackStyles.length];
                   const isHidden = hiddenOptionIds.includes(opt.id);
@@ -1027,7 +1088,7 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
                     return (
                       <div
                         key={opt.id}
-                        className="min-h-[70px] sm:min-h-[85px] p-3.5 rounded-2xl border-2 border-dashed border-slate-800 bg-slate-950/60 flex items-center justify-center text-slate-600 font-pokemon text-xs line-through select-none"
+                        className="min-h-[54px] sm:min-h-[64px] p-2.5 sm:p-3 rounded-2xl border-2 border-dashed border-slate-800 bg-slate-950/60 flex items-center justify-center text-slate-600 font-pokemon text-xs line-through select-none"
                       >
                         ⚡ Ataque bloqueado (50/50)
                       </div>
@@ -1039,7 +1100,7 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
                       key={opt.id}
                       onClick={() => submitAnswer(opt.id)}
                       disabled={answering || paralyzedSec > 0}
-                      className={`min-h-[70px] sm:min-h-[85px] p-3.5 rounded-2xl font-bold text-base sm:text-lg text-white shadow-lg border-b-4 transition-all flex items-center gap-3 active:scale-95 cursor-pointer disabled:opacity-50 ${style.bg}`}
+                      className={`min-h-[54px] sm:min-h-[64px] p-2.5 sm:p-3 rounded-2xl font-bold text-sm sm:text-base text-white shadow-lg border-b-4 transition-all flex items-center gap-2.5 active:scale-95 cursor-pointer disabled:opacity-50 ${style.bg}`}
                     >
                       <span className="w-9 h-9 rounded-xl bg-black/25 flex items-center justify-center text-lg shrink-0">
                         {style.icon}
@@ -1095,13 +1156,19 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
                 </div>
               )}
 
-              <button
-                onClick={handleNextQuestion}
-                className="w-full max-w-sm py-4 rounded-2xl bg-gradient-to-r from-red-600 to-amber-500 hover:from-red-500 hover:to-amber-400 text-white font-black text-base shadow-xl shadow-red-600/30 transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer mt-2 font-pokemon uppercase tracking-wider border-b-4 border-red-800"
-              >
-                <span>{currentIdx + 1 >= session.questions.length ? 'Ver Hall de la Fama 🏆' : 'Siguiente Ataque'}</span>
-                <ArrowRight className="w-5 h-5" />
-              </button>
+              {session.settings?.paceMode === 'teacher' ? (
+                <div className="w-full max-w-sm py-3.5 px-4 rounded-2xl bg-slate-900 border-2 border-emerald-400/50 text-emerald-300 font-black text-xs sm:text-sm font-pokemon text-center animate-pulse mt-2">
+                  👨‍🏫 ¡Respuesta guardada! Esperando a que el profesor pase a la siguiente pregunta...
+                </div>
+              ) : (
+                <button
+                  onClick={handleNextQuestion}
+                  className="w-full max-w-sm py-4 rounded-2xl bg-gradient-to-r from-red-600 to-amber-500 hover:from-red-500 hover:to-amber-400 text-white font-black text-base shadow-xl shadow-red-600/30 transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer mt-2 font-pokemon uppercase tracking-wider border-b-4 border-red-800"
+                >
+                  <span>{currentIdx + 1 >= session.questions.length ? 'Ver Hall de la Fama 🏆' : 'Siguiente Ataque'}</span>
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+              )}
             </div>
           )}
         </div>

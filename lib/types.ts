@@ -87,6 +87,8 @@ export interface SessionSettings {
   powerUpsEnabled?: boolean;
   pvpAttacksEnabled?: boolean;
   teamsEnabled?: boolean;
+  paceMode?: 'free' | 'teacher';
+  questionDuration?: number; // 0 = default per question, >0 = override seconds, -1 = no timer
 }
 
 export interface Session {
@@ -102,4 +104,7 @@ export interface Session {
   settings?: SessionSettings;
   battleLog?: BattleLogEntry[];
   activeWeather?: ActiveWeather | null;
+  teacherCurrentIndex?: number;
+  questionClosed?: boolean;
+  bonusTimePulse?: { id: string; seconds: number; createdAt: number } | null;
 }
