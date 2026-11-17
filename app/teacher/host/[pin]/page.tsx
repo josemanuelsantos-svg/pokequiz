@@ -1062,8 +1062,8 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
                       <div className="w-full sm:w-64 flex flex-col gap-1">
                         <div className="flex items-center justify-between text-[11px] font-pokemon">
                           <span className="text-slate-400">Pregunta {player.currentQuestionIndex}/{totalQuestions}</span>
-                          <span className={player.isFinished ? 'text-emerald-400 font-bold' : 'text-slate-400'}>
-                            {player.isFinished ? 'Completado 🏅' : `${progressPct}%`}
+                          <span className={player.isFinished || player.answers.length >= totalQuestions ? 'text-emerald-400 font-bold' : 'text-slate-400'}>
+                            {player.isFinished || player.answers.length >= totalQuestions ? 'Completado 🏅' : `${progressPct}%`}
                           </span>
                         </div>
                         <div className="w-full h-2.5 rounded-full bg-slate-950 overflow-hidden border border-slate-800">

@@ -74,18 +74,22 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
   const [questionStartTime, setQuestionStartTime] = useState<number>(Date.now());
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Audio controls
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  // Audio controls (muted by default on student devices to keep classroom quiet)
+  const [soundEnabled, setSoundEnabled] = useState(false);
   const [musicEnabled, setMusicEnabled] = useState(false);
+
+  useEffect(() => {
+    sounds.setSoundEnabled(false);
+  }, []);
 
   // Review expanded state
   const [showReview, setShowReview] = useState(true);
 
-  // Power-ups (Mochila de Entrenador)
+  // Power-ups (Mochila de Entrenador) - multiple charges for +15s and 50/50!
   const [powerUps, setPowerUps] = useState({
-    fiftyFifty: true,
-    extraTime: true,
-    doubleExp: true
+    fiftyFifty: 2,
+    extraTime: 3,
+    doubleExp: 1
   });
   const [hiddenOptionIds, setHiddenOptionIds] = useState<string[]>([]);
   const [isDoubleExpActive, setIsDoubleExpActive] = useState(false);
@@ -137,7 +141,7 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
   };
 
   const useFiftyFifty = () => {
-    if (!powerUps.fiftyFifty || !currentQuestion) return;
+    if (powerUps.fiftyFifty <= 0 || !currentQuestion) return;
     if (currentQuestion.options.length <= 2) return;
 
     sounds.playClick();
@@ -145,21 +149,21 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
     const hideCount = currentQuestion.options.length === 3 ? 1 : 2;
     const toHide = wrongOptions.sort(() => 0.5 - Math.random()).slice(0, hideCount);
     setHiddenOptionIds(toHide);
-    setPowerUps(prev => ({ ...prev, fiftyFifty: false }));
+    setPowerUps(prev => ({ ...prev, fiftyFifty: Math.max(0, prev.fiftyFifty - 1) }));
   };
 
   const useExtraTime = () => {
-    if (!powerUps.extraTime) return;
+    if (powerUps.extraTime <= 0 || timeLeft < 0) return;
     sounds.playClick();
     setTimeLeft(prev => prev + 15);
-    setPowerUps(prev => ({ ...prev, extraTime: false }));
+    setPowerUps(prev => ({ ...prev, extraTime: Math.max(0, prev.extraTime - 1) }));
   };
 
   const useDoubleExp = () => {
-    if (!powerUps.doubleExp) return;
+    if (powerUps.doubleExp <= 0) return;
     sounds.playClick();
     setIsDoubleExpActive(true);
-    setPowerUps(prev => ({ ...prev, doubleExp: false }));
+    setPowerUps(prev => ({ ...prev, doubleExp: Math.max(0, prev.doubleExp - 1) }));
   };
 
   const toggleSound = () => {
@@ -925,41 +929,41 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
                   <button
                     type="button"
                     onClick={useFiftyFifty}
-                    disabled={!powerUps.fiftyFifty || currentQuestion.options.length <= 2}
+                    disabled={powerUps.fiftyFifty <= 0 || currentQuestion.options.length <= 2}
                     className={`px-2.5 py-1 rounded-xl text-[11px] font-black flex items-center gap-1 border transition-all ${
-                      powerUps.fiftyFifty && currentQuestion.options.length > 2
+                      powerUps.fiftyFifty > 0 && currentQuestion.options.length > 2
                         ? 'bg-amber-400/20 border-amber-400 text-amber-300 hover:bg-amber-400 hover:text-slate-950 shadow-sm cursor-pointer'
                         : 'bg-slate-900 border-slate-800 text-slate-600 line-through cursor-not-allowed'
                     }`}
                     title="Descarta opciones incorrectas"
                   >
                     <Zap className="w-3 h-3 fill-amber-400" />
-                    <span>50/50</span>
+                    <span>50/50 {powerUps.fiftyFifty > 0 ? `(x${powerUps.fiftyFifty})` : ''}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={useExtraTime}
-                    disabled={!powerUps.extraTime}
+                    disabled={powerUps.extraTime <= 0 || timeLeft < 0}
                     className={`px-2.5 py-1 rounded-xl text-[11px] font-black flex items-center gap-1 border transition-all ${
-                      powerUps.extraTime
+                      powerUps.extraTime > 0 && timeLeft >= 0
                         ? 'bg-sky-400/20 border-sky-400 text-sky-300 hover:bg-sky-400 hover:text-slate-950 shadow-sm cursor-pointer'
                         : 'bg-slate-900 border-slate-800 text-slate-600 line-through cursor-not-allowed'
                     }`}
                     title="Añade +15 segundos a la pregunta"
                   >
                     <Hourglass className="w-3 h-3 text-sky-400" />
-                    <span>+15s</span>
+                    <span>+15s {powerUps.extraTime > 0 ? `(x${powerUps.extraTime})` : ''}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={useDoubleExp}
-                    disabled={!powerUps.doubleExp || isDoubleExpActive}
+                    disabled={powerUps.doubleExp <= 0 || isDoubleExpActive}
                     className={`px-2.5 py-1 rounded-xl text-[11px] font-black flex items-center gap-1 border transition-all ${
                       isDoubleExpActive
                         ? 'bg-emerald-400 text-slate-950 border-emerald-300 shadow-md animate-pulse'
-                        : powerUps.doubleExp
+                        : powerUps.doubleExp > 0
                         ? 'bg-yellow-400/20 border-yellow-400 text-yellow-300 hover:bg-yellow-400 hover:text-slate-950 shadow-sm cursor-pointer'
                         : 'bg-slate-900 border-slate-800 text-slate-600 line-through cursor-not-allowed'
                     }`}

@@ -109,7 +109,7 @@ export async function POST(
 
     player.currentQuestionIndex = player.answers.length;
 
-    if (player.currentQuestionIndex >= session.questions.length) {
+    if (player.answers.length >= session.questions.length || player.currentQuestionIndex >= session.questions.length) {
       player.isFinished = true;
       player.finishedAt = Date.now();
     }
