@@ -996,11 +996,13 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
                           {activeQ.text}
                         </p>
                         {activeQ.image && (
-                          <img
-                            src={activeQ.image}
-                            alt="Pregunta proyectada"
-                            className="max-h-28 w-auto object-contain rounded-xl border border-amber-400/30 bg-slate-900/70 p-1 shrink-0"
-                          />
+                          <div className="shrink-0 w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden flex items-center justify-center border border-amber-400/30 bg-slate-900/70 p-1.5">
+                            <img
+                              src={activeQ.image}
+                              alt="Pregunta proyectada"
+                              className="w-full h-full object-contain rounded-lg"
+                            />
+                          </div>
                         )}
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

@@ -928,11 +928,11 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
                   </div>
 
                   {currentQuestion.image && (
-                    <div className="shrink-0 rounded-xl overflow-hidden max-h-24 sm:max-h-28 flex items-center justify-center bg-slate-950/70 border border-amber-400/30 shadow-inner p-1">
+                    <div className="shrink-0 w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden flex items-center justify-center bg-slate-950/70 border border-amber-400/30 shadow-inner p-1.5">
                       <img
                         src={currentQuestion.image}
                         alt="Ilustración de la pregunta"
-                        className="max-h-22 sm:max-h-26 w-auto object-contain rounded-lg"
+                        className="w-full h-full object-contain rounded-lg"
                       />
                     </div>
                   )}
