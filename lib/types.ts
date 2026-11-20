@@ -76,9 +76,28 @@ export interface Player {
   lastActiveAt: number;
   attackCharges?: number;
   activeEffect?: ActiveAttackEffect | null;
+  evolutionStage?: 1 | 2 | 3;
+  evolutionName?: string;
 }
 
 export type SessionStatus = 'waiting' | 'active' | 'finished';
+
+export interface BossState {
+  id: string;
+  name: string;
+  title: string;
+  artwork: string;
+  maxHp: number;
+  hp: number;
+  defeated: boolean;
+  lastHit?: {
+    id: string;
+    playerNickname: string;
+    playerAvatar: string;
+    damage: number;
+    createdAt: number;
+  } | null;
+}
 
 export interface SessionSettings {
   shuffleQuestions?: boolean;
@@ -89,6 +108,8 @@ export interface SessionSettings {
   teamsEnabled?: boolean;
   paceMode?: 'free' | 'teacher';
   questionDuration?: number; // 0 = default per question, >0 = override seconds, -1 = no timer
+  bossModeEnabled?: boolean;
+  bossId?: string;
 }
 
 export interface Session {
@@ -107,4 +128,5 @@ export interface Session {
   teacherCurrentIndex?: number;
   questionClosed?: boolean;
   bonusTimePulse?: { id: string; seconds: number; createdAt: number } | null;
+  boss?: BossState | null;
 }

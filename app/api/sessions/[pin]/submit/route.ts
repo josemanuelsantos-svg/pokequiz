@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { SessionStore } from '@/lib/storage';
+import { findChainByArtwork, getTargetStageForCorrectCount } from '@/lib/evolutions';
 
 export async function POST(
   req: Request,
@@ -109,6 +110,57 @@ export async function POST(
 
     player.currentQuestionIndex = player.answers.length;
 
+    // 1. Check Pokémon Evolution based on total correct answers (4 -> Stage 2, 8 -> Stage 3)
+    let evolvedTo: {
+      fromName: string;
+      toName: string;
+      fromArtwork: string;
+      toArtwork: string;
+      stage: number;
+    } | null = null;
+
+    if (isCorrect) {
+      const totalCorrect = player.answers.filter((a) => a.isCorrect).length;
+      const targetStage = getTargetStageForCorrectCount(totalCorrect);
+      const currentStage = player.evolutionStage || 1;
+      if (targetStage > currentStage) {
+        const chain = findChainByArtwork(player.avatar);
+        if (chain) {
+          const fromInfo = chain[currentStage - 1] || chain[0];
+          const toInfo = chain[targetStage - 1];
+          if (toInfo) {
+            player.avatar = toInfo.artwork;
+            player.evolutionStage = toInfo.stage;
+            player.evolutionName = toInfo.name;
+            evolvedTo = {
+              fromName: fromInfo.name,
+              toName: toInfo.name,
+              fromArtwork: fromInfo.artwork,
+              toArtwork: toInfo.artwork,
+              stage: toInfo.stage,
+            };
+          }
+        }
+      }
+    }
+
+    // 2. Cooperative Boss Damage (if Boss Mode is active)
+    let bossDamageDealt = 0;
+    if (isCorrect && scoreEarned > 0 && session.boss && !session.boss.defeated) {
+      bossDamageDealt = scoreEarned;
+      session.boss.hp = Math.max(0, session.boss.hp - scoreEarned);
+      session.boss.lastHit = {
+        id: 'hit_' + Math.random().toString(36).substring(2, 9),
+        playerNickname: player.nickname,
+        playerAvatar: player.avatar,
+        damage: scoreEarned,
+        createdAt: Date.now(),
+      };
+      if (session.boss.hp === 0) {
+        session.boss.defeated = true;
+      }
+    }
+
     if (player.answers.length >= session.questions.length || player.currentQuestionIndex >= session.questions.length) {
       player.isFinished = true;
       player.finishedAt = Date.now();
@@ -127,7 +179,9 @@ export async function POST(
         streak: player.streak,
         currentQuestionIndex: player.currentQuestionIndex,
         totalQuestions: session.questions.length,
-        isFinished: player.isFinished
+        isFinished: player.isFinished,
+        evolvedTo,
+        bossDamageDealt,
       }
     });
   } catch (err: unknown) {

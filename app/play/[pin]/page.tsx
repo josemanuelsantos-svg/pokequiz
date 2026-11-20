@@ -15,6 +15,7 @@ import { POKEMON_AVATARS, PokemonAvatar } from '@/lib/pokemon-avatars';
 import { PokeballIcon } from '@/components/Pokeball';
 import { getRewardForRank } from '@/lib/rewards';
 import { AttackOverlay, AttackAnimationData } from '@/components/AttackOverlay';
+import { EvolutionOverlay, EvolutionEventData } from '@/components/EvolutionOverlay';
 import { REGION_TEAMS, WEATHER_CONFIG } from '@/lib/teams';
 
 // Deterministic hash-based shuffle so each student gets a stable, unique order
@@ -105,6 +106,7 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
   const [launchingAttack, setLaunchingAttack] = useState(false);
   const [isShaking, setIsShaking] = useState(false);
   const [attackAnimation, setAttackAnimation] = useState<AttackAnimationData | null>(null);
+  const [evolutionEvent, setEvolutionEvent] = useState<EvolutionEventData | null>(null);
   const [selectedTargetId, setSelectedTargetId] = useState<string>('');
   const [paralysisTaps, setParalysisTaps] = useState<number>(0);
   const lastWeatherActivatedAtRef = useRef<number>(0);
@@ -493,6 +495,12 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
       const data = await res.json();
       if (data.success) {
         setFeedback(data.data);
+        if (data.data.evolvedTo) {
+          setEvolutionEvent(data.data.evolvedTo);
+          sounds.playFanfare();
+          confetti({ particleCount: 90, spread: 80, origin: { y: 0.55 } });
+          setTimeout(() => setEvolutionEvent(null), 3200);
+        }
         if (data.data.isCorrect) {
           if (data.data.streak >= 2 && data.data.streak % 2 === 0) {
             sounds.playStreakBoost();
@@ -593,6 +601,7 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
 
   return (
     <div className="min-h-screen bg-pokemon-pattern text-slate-100 flex flex-col justify-between p-3 sm:p-6 select-none relative overflow-hidden">
+      {evolutionEvent && <EvolutionOverlay data={evolutionEvent} />}
       {/* Audio controls */}
       <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
         <button
@@ -774,10 +783,14 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
               const maxT = effDur > 0 ? effDur : 30;
               const ratio = timeLeft < 0 ? 1 : Math.min(1, timeLeft / maxT);
               const trainerLevel = 1 + Math.floor((myPlayer?.score || 0) / 1000);
-              const isBoss = currentIdx === orderedQuestions.length - 1;
-              const opponent = isBoss
+              const coopBoss = session.boss;
+              const isBoss = Boolean(coopBoss) || currentIdx === orderedQuestions.length - 1;
+              const opponent = coopBoss
+                ? { name: coopBoss.name, art: coopBoss.artwork }
+                : isBoss
                 ? GYM_OPPONENTS[GYM_OPPONENTS.length - 1]
                 : GYM_OPPONENTS[currentIdx % (GYM_OPPONENTS.length - 1)];
+              const bossHpPct = coopBoss ? Math.max(0, Math.round((coopBoss.hp / Math.max(1, coopBoss.maxHp)) * 100)) : 100;
 
               return (
                 <>
@@ -841,7 +854,12 @@ export default function StudentPlayPage({ params }: { params: Promise<{ pin: str
                         </span>
                         <div className="flex items-center justify-end gap-1.5 mt-1">
                           <div className="w-16 sm:w-24 h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
-                            <div className="h-full hp-bar-red w-full" />
+                            <div
+                              className={`h-full transition-all duration-500 ${
+                                bossHpPct > 50 ? 'hp-bar-red' : bossHpPct > 20 ? 'hp-bar-yellow' : 'bg-rose-500 animate-pulse'
+                              }`}
+                              style={{ width: `${bossHpPct}%` }}
+                            />
                           </div>
                           <span className="text-[8px] font-pixel text-red-400">PS</span>
                         </div>

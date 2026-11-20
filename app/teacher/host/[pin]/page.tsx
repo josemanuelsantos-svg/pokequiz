@@ -19,6 +19,7 @@ import { sounds } from '@/lib/sound';
 import { PokeballIcon, GreatBallIcon, UltraBallIcon } from '@/components/Pokeball';
 import { getRewardForRank, TOP_6_REWARDS } from '@/lib/rewards';
 import { REGION_TEAMS, WEATHER_CONFIG } from '@/lib/teams';
+import { BOSS_PRESETS } from '@/lib/evolutions';
 
 export default function HostGamePage({ params }: { params: Promise<{ pin: string }> }) {
   const router = useRouter();
@@ -44,9 +45,14 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
     teamsEnabled: false,
     paceMode: 'free',
     questionDuration: 30,
+    bossModeEnabled: false,
+    bossId: 'mewtwo',
   });
   const [weatherLoading, setWeatherLoading] = useState(false);
   const [controlLoading, setControlLoading] = useState(false);
+  const lastBossHitIdRef = useRef<string | null>(null);
+  const bossDefeatCelebratedRef = useRef<boolean>(false);
+  const [bossShaking, setBossShaking] = useState(false);
 
   const toggleSound = () => {
     const next = !soundEnabled;
@@ -92,6 +98,19 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
             setLiveAttackFlash({ text: latestAtk.text, type: latestAtk.type });
             setTimeout(() => setLiveAttackFlash(null), 2600);
           }
+        }
+
+        // Detect new Boss Hit or Boss Defeat on the live projector
+        const bossState = data.data.boss;
+        if (bossState?.lastHit && bossState.lastHit.id !== lastBossHitIdRef.current) {
+          lastBossHitIdRef.current = bossState.lastHit.id;
+          setBossShaking(true);
+          setTimeout(() => setBossShaking(false), 600);
+        }
+        if (bossState?.defeated && !bossDefeatCelebratedRef.current) {
+          bossDefeatCelebratedRef.current = true;
+          sounds.playFanfare();
+          confetti({ particleCount: 160, spread: 110, origin: { y: 0.4 } });
         }
 
         setSession(data.data);
@@ -183,6 +202,19 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
             setLiveAttackFlash({ text: latestAtk.text, type: latestAtk.type });
             setTimeout(() => setLiveAttackFlash(null), 2600);
           }
+        }
+
+        // Detect new Boss Hit or Boss Defeat on the live projector
+        const bossState = data.data.boss;
+        if (bossState?.lastHit && bossState.lastHit.id !== lastBossHitIdRef.current) {
+          lastBossHitIdRef.current = bossState.lastHit.id;
+          setBossShaking(true);
+          setTimeout(() => setBossShaking(false), 600);
+        }
+        if (bossState?.defeated && !bossDefeatCelebratedRef.current) {
+          bossDefeatCelebratedRef.current = true;
+          sounds.playFanfare();
+          confetti({ particleCount: 160, spread: 110, origin: { y: 0.4 } });
         }
 
         setSession(data.data);
@@ -711,6 +743,51 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
               </div>
             </div>
 
+            {/* Cooperative Final Boss Mode Selector */}
+            <div className="w-full max-w-4xl mt-3 bg-gradient-to-r from-fuchsia-950/60 via-slate-900/90 to-red-950/60 border-2 border-fuchsia-500/40 rounded-2xl p-3 flex flex-col md:flex-row items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setLobbySettings(s => ({ ...s, bossModeEnabled: !s.bossModeEnabled }))}
+                  className={`px-3 py-2 rounded-xl border-2 text-xs font-black font-pokemon transition-all cursor-pointer shrink-0 ${
+                    lobbySettings.bossModeEnabled
+                      ? 'bg-fuchsia-500 text-white border-fuchsia-300 shadow-lg shadow-fuchsia-500/30'
+                      : 'bg-slate-950 text-slate-300 border-slate-700 hover:border-fuchsia-400/50'
+                  }`}
+                >
+                  {lobbySettings.bossModeEnabled ? '🐉 JEFE ACTIVO' : '🐉 Modo Jefe Final'}
+                </button>
+                <div>
+                  <span className="text-xs font-black text-white block font-pokemon">
+                    Batalla Cooperativa contra Jefe Legendario
+                  </span>
+                  <span className="text-[10px] text-slate-300">
+                    Toda la clase une fuerzas: cada acierto quita PS al Jefe proyectado en la pizarra
+                  </span>
+                </div>
+              </div>
+
+              {lobbySettings.bossModeEnabled && (
+                <div className="flex items-center gap-1.5 flex-wrap justify-center">
+                  {BOSS_PRESETS.map((b) => (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => setLobbySettings(s => ({ ...s, bossId: b.id }))}
+                      className={`px-2 py-1 rounded-xl border text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-all font-pokemon ${
+                        (lobbySettings.bossId || 'mewtwo') === b.id
+                          ? 'bg-amber-400 text-slate-950 border-white shadow'
+                          : 'bg-slate-950/80 text-slate-300 border-slate-700 hover:border-amber-400/60'
+                      }`}
+                    >
+                      <img src={b.artwork} alt={b.name} className="w-6 h-6 object-contain" />
+                      <span>{b.name.split(' ')[0]}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Players Joined Counter & Avatars list */}
             <div className="w-full max-w-4xl mt-6">
               <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
@@ -800,6 +877,71 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
                 </span>
               </div>
             </div>
+
+            {/* Cooperative Final Boss Arena Stage on Projector */}
+            {session.boss && (() => {
+              const boss = session.boss;
+              const hpPct = Math.max(0, Math.round((boss.hp / Math.max(1, boss.maxHp)) * 100));
+              return (
+                <div className={`rounded-3xl border-2 p-4 sm:p-5 shadow-2xl relative overflow-hidden ${
+                  boss.defeated
+                    ? 'bg-gradient-to-r from-amber-600/30 via-emerald-900/70 to-amber-600/30 border-amber-300'
+                    : 'bg-gradient-to-r from-fuchsia-950/80 via-slate-900/95 to-red-950/80 border-fuchsia-400/60'
+                }`}>
+                  <div className="flex flex-col sm:flex-row items-center gap-4">
+                    <div className="relative shrink-0">
+                      <div className={`absolute inset-0 rounded-full blur-2xl opacity-40 ${boss.defeated ? 'bg-amber-400' : 'bg-fuchsia-500'}`} />
+                      <img
+                        src={boss.artwork}
+                        alt={boss.name}
+                        className={`w-28 h-28 sm:w-36 sm:h-36 object-contain relative z-10 drop-shadow-[0_12px_24px_rgba(0,0,0,0.65)] ${
+                          boss.defeated ? 'grayscale opacity-70 scale-90 transition-all' : bossShaking ? 'animate-target-hit' : 'animate-float'
+                        }`}
+                      />
+                    </div>
+
+                    <div className="flex-1 w-full space-y-2.5 text-center sm:text-left">
+                      <div className="flex flex-wrap items-center justify-center sm:justify-between gap-2">
+                        <div>
+                          <span className="text-[10px] font-pixel text-fuchsia-300 uppercase tracking-widest block">
+                            {boss.defeated ? '🏆 ¡MISIÓN CUMPLIDA POR TODA LA CLASE!' : `🐉 JEFE COOPERATIVO • ${boss.title}`}
+                          </span>
+                          <h3 className="text-xl sm:text-2xl font-black text-white font-pokemon uppercase">
+                            {boss.name}
+                          </h3>
+                        </div>
+                        <span className={`px-3 py-1 rounded-xl font-black text-sm font-pokemon border ${
+                          boss.defeated
+                            ? 'bg-emerald-400 text-slate-950 border-white'
+                            : 'bg-slate-950/90 text-amber-300 border-amber-400/40'
+                        }`}>
+                          {boss.defeated ? '¡DERROTADO! 🎉' : `${boss.hp.toLocaleString()} / ${boss.maxHp.toLocaleString()} PS (${hpPct}%)`}
+                        </span>
+                      </div>
+
+                      <div className="w-full h-5 rounded-full bg-slate-950 p-1 border-2 border-slate-700 overflow-hidden shadow-inner">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            hpPct > 50 ? 'hp-bar-green' : hpPct > 20 ? 'hp-bar-yellow' : 'hp-bar-red'
+                          }`}
+                          style={{ width: `${hpPct}%` }}
+                        />
+                      </div>
+
+                      {boss.lastHit && !boss.defeated && (
+                        <div className="inline-flex items-center gap-2 bg-slate-950/80 border border-amber-400/40 rounded-xl px-3 py-1.5 text-xs font-bold text-amber-200 font-pokemon">
+                          <span>💥</span>
+                          <span>
+                            ¡<strong>{boss.lastHit.playerNickname}</strong> asestó{' '}
+                            <strong className="text-red-400">-{boss.lastHit.damage.toLocaleString()} PS</strong> a {boss.name}!
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Teacher-Paced Live Control Card */}
             {session.settings?.paceMode === 'teacher' && (() => {
@@ -1030,6 +1172,11 @@ export default function HostGamePage({ params }: { params: Promise<{ pin: string
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-black text-white text-sm font-pokemon">{player.nickname}</span>
+                            {player.evolutionStage && player.evolutionStage >= 2 && (
+                              <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/40 font-pokemon">
+                                ✨ {player.evolutionName || `Fase ${player.evolutionStage}`}
+                              </span>
+                            )}
                             {player.team && REGION_TEAMS[player.team] && (
                               <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border font-pokemon ${REGION_TEAMS[player.team].badgeClass}`}>
                                 {REGION_TEAMS[player.team].emoji} {player.team}
